@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 type ExpandingSearchDockProps = {
   onSearch?: (query: string) => void;
@@ -15,8 +15,12 @@ export function ExpandingSearchDock({
 }: ExpandingSearchDockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleExpand = () => setIsExpanded(true);
+  const handleExpand = () => {
+    setIsExpanded(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
   const handleCollapse = () => {
     setIsExpanded(false);
     setQuery("");
@@ -28,7 +32,7 @@ export function ExpandingSearchDock({
   };
 
   return (
-    <div className="relative">
+    <div className="relative flex-1 flex justify-end md:flex-none">
       <AnimatePresence mode="wait">
         {!isExpanded ? (
           <motion.button
@@ -45,27 +49,23 @@ export function ExpandingSearchDock({
         ) : (
           <motion.form
             key="input"
-            initial={{ width: 44, opacity: 0 }}
-            animate={{ width: 380, opacity: 1 }}
-            exit={{ width: 44, opacity: 0 }}
+            initial={{ opacity: 0, scaleX: 0.9 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            exit={{ opacity: 0, scaleX: 0.9 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onSubmit={handleSubmit}
-            className="relative"
+            className="relative origin-right w-full md:w-[380px]"
           >
-            <motion.div
-              initial={{ backdropFilter: "blur(0px)" }}
-              animate={{ backdropFilter: "blur(12px)" }}
-              className="relative flex items-center gap-2 overflow-hidden rounded-full bg-white/95 backdrop-blur-md shadow-sm"
-            >
+            <div className="relative flex items-center gap-2 overflow-hidden rounded-full bg-white/95 backdrop-blur-md shadow-sm">
               <div className="ml-4">
                 <Search className="h-4 w-4 text-ink-muted" />
               </div>
               <input
+                ref={inputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={placeholder}
-                autoFocus
                 className="h-11 flex-1 bg-transparent pr-2 text-sm text-ink outline-none placeholder:text-ink-muted"
               />
               <motion.button
@@ -80,7 +80,7 @@ export function ExpandingSearchDock({
               >
                 <X className="h-4 w-4" />
               </motion.button>
-            </motion.div>
+            </div>
           </motion.form>
         )}
       </AnimatePresence>
