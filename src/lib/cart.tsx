@@ -133,7 +133,6 @@ export function useCartLines(): { product: CartProductInfo; qty: number }[] {
   const idsRef = useRef("");
 
   const ids = lines.map((l) => l.productId).sort().join(",");
-  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     if (ids === idsRef.current) return;
@@ -145,6 +144,7 @@ export function useCartLines(): { product: CartProductInfo; qty: number }[] {
       return;
     }
     let cancelled = false;
+    const supabase = createClient();
     supabase
       .from("products")
       .select("id, name, price, bg_color, emoji, weight, categories(name)")
@@ -169,7 +169,7 @@ export function useCartLines(): { product: CartProductInfo; qty: number }[] {
     return () => {
       cancelled = true;
     };
-  }, [ids, lines, supabase]);
+  }, [ids, lines]);
 
   return useMemo(
     () =>
