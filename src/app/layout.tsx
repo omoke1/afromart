@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "AfroMart — Authentic African Groceries Delivered Across the UK",
   description:
     "Shop authentic African and Nigerian groceries online. Fresh staples, spices, and more delivered to your door across the UK.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
