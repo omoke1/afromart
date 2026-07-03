@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "afromart (Next.js dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3005,
+      "autoPort": true
+    },
+    {
+      "name": "afromart-saleor (Saleor Paper storefront)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--", "-p", "3006"],
+      "port": 3006
+    }
+  ]
+}

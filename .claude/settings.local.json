@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c ' *)",
+      "Bash(pip install *)",
+      "Bash(python -c \"from pypdf import PdfReader; r = PdfReader\\(r'C:\\\\Users\\\\USER\\\\Downloads\\\\Africanmarkethub.pdf'\\); [print\\(f'--- PAGE {i+1} ---\\\\n{p.extract_text\\(\\)}\\\\n'\\) for i,p in enumerate\\(r.pages[:18]\\)]\")",
+      "Bash(npm cache *)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
+      "Bash(gh search *)",
+      "Bash(gh repo *)",
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "PowerShell(Set-Location 'C:\\\\Users\\\\USER\\\\OneDrive\\\\Desktop\\\\omoke\\\\afromart'; $p = Start-Process -FilePath \"cmd.exe\" -ArgumentList \"/c\",\"npx next dev -p 3005 > $env:TEMP\\\\afromart-dev.log 2>&1\" -PassThru -WindowStyle Hidden; Write-Output \"Started PID $\\($p.Id\\)\"; Start-Sleep -Seconds 8; Get-Content \"$env:TEMP\\\\afromart-dev.log\" -Tail 10)"
+    ]
+  }
+}

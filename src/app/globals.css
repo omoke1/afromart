@@ -1,0 +1,31 @@
+@import url("https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* AfroMart palette */
+  --color-brand: #FF4200;
+  --color-brand-hover: #e63a00;
+  --color-dark: #1E000C;
+  --color-gold: #FAC838;
+  --color-green: #00C451;
+
+  /* Saleor-grade neutrals */
+  --color-bg: #ffffff;
+  --color-surface: #fafaf7;
+  --color-surface-2: #f4f1ea;
+  --color-line: #e6e1d6;
+  --color-ink: #0a0a0a;
+  --color-ink-soft: #555555;
+  --color-ink-muted: #8a8a8a;
+
+  --font-sans: "General Sans", system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: "General Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+* { box-sizing: border-box; }
