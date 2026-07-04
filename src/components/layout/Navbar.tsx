@@ -20,6 +20,7 @@ const categories = [
 export default function Navbar() {
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchExpanded, setSearchExpanded] = useState(false);
   const { count, openDrawer } = useCart();
   const router = useRouter();
 
@@ -31,7 +32,7 @@ export default function Navbar() {
         {/* Hamburger */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          className="text-white hover:bg-white/10 w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+          className={`text-white hover:bg-white/10 w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${searchExpanded ? "hidden md:flex" : "flex"}`}
           aria-label="Menu"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -40,7 +41,10 @@ export default function Navbar() {
         </button>
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 shrink-0 mr-2">
+        <Link
+          href="/"
+          className={`items-center gap-2 shrink-0 mr-2 ${searchExpanded ? "hidden md:flex" : "flex"}`}
+        >
           <svg viewBox="0 0 32 32" fill="none" className="w-8 h-8">
             <rect width="32" height="32" rx="7" fill="white" />
             <path d="M10 13 C10 9.5 13 7.5 16 7.5 C19 7.5 22 9.5 22 13" stroke="#FF4200" strokeWidth="2" strokeLinecap="round" fill="none" />
@@ -75,7 +79,10 @@ export default function Navbar() {
             </select>
           </div>
 
-          <ExpandingSearchDock onSearch={(q) => router.push(`/search?q=${encodeURIComponent(q)}`)} />
+          <ExpandingSearchDock
+            onSearch={(q) => router.push(`/search?q=${encodeURIComponent(q)}`)}
+            onExpandedChange={setSearchExpanded}
+          />
         </div>
 
         {/* Delivery urgency (Gromuse-style) */}
@@ -90,7 +97,7 @@ export default function Navbar() {
         {/* Cart */}
         <button
           onClick={openDrawer}
-          className="relative bg-white hover:bg-stone-100 text-ink w-10 h-10 rounded-full flex items-center justify-center shrink-0 transition-colors"
+          className={`relative bg-white hover:bg-stone-100 text-ink w-10 h-10 rounded-full items-center justify-center shrink-0 transition-colors ${searchExpanded ? "hidden md:flex" : "flex"}`}
           aria-label="Open cart"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -104,7 +111,7 @@ export default function Navbar() {
         {/* Account avatar — animated user icon */}
         <Link
           href="/account"
-          className="w-10 h-10 bg-white hover:bg-stone-100 text-ink rounded-full flex items-center justify-center shrink-0 transition-colors"
+          className={`w-10 h-10 bg-white hover:bg-stone-100 text-ink rounded-full items-center justify-center shrink-0 transition-colors ${searchExpanded ? "hidden md:flex" : "flex"}`}
           aria-label="Account"
         >
           <UserIcon size={20} strokeWidth={1.8} />

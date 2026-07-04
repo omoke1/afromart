@@ -7,11 +7,13 @@ import { useRef, useState } from "react";
 type ExpandingSearchDockProps = {
   onSearch?: (query: string) => void;
   placeholder?: string;
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 export function ExpandingSearchDock({
   onSearch,
   placeholder = "Search for groceries, brands, recipes...",
+  onExpandedChange,
 }: ExpandingSearchDockProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [query, setQuery] = useState("");
@@ -19,11 +21,13 @@ export function ExpandingSearchDock({
 
   const handleExpand = () => {
     setIsExpanded(true);
+    onExpandedChange?.(true);
     requestAnimationFrame(() => inputRef.current?.focus());
   };
   const handleCollapse = () => {
     setIsExpanded(false);
     setQuery("");
+    onExpandedChange?.(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
