@@ -23,6 +23,8 @@ type DisplayProduct = {
   bg_color: string;
   badge: string | null;
   weight: string;
+  image_url: string;
+  featured_position: number;
 };
 
 type DisplayCategory = {
@@ -49,8 +51,8 @@ function ShopInner() {
     async function load() {
       const catRaw = await supabase.from("categories").select("*").order("name");
       const categories = catRaw.data as { id: string; name: string; slug: string; emoji: string; bg_color: string; description: string }[] | null;
-      const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug)").order("name");
-      const products = prodRaw.data as { id: string; name: string; category_id: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; categories: { name: string; slug: string } }[] | null;
+      const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug)").eq("is_active", true).order("name");
+      const products = prodRaw.data as { id: string; name: string; category_id: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string } }[] | null;
 
       if (!categories || !products) return;
 
@@ -81,6 +83,8 @@ function ShopInner() {
             bg_color: p.bg_color,
             badge: p.badge,
             weight: p.weight,
+            image_url: p.image_url ?? "",
+            featured_position: p.featured_position ?? 0,
           };
         })
       );
@@ -95,6 +99,9 @@ function ShopInner() {
         : displayProducts.filter((p) => p.category_slug === active);
     const list = [...filtered];
     switch (sort) {
+      case "featured":
+        list.sort((a, b) => a.featured_position - b.featured_position || a.name.localeCompare(b.name));
+        break;
       case "price-asc":
         list.sort((a, b) => a.price - b.price);
         break;

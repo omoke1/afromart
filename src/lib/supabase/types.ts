@@ -54,6 +54,11 @@ export interface Database {
           description: string;
           origin: string | null;
           stock: number;
+          image_url: string;
+          is_featured: boolean;
+          featured_position: number;
+          is_active: boolean;
+          slug: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -70,6 +75,11 @@ export interface Database {
           description: string;
           origin?: string | null;
           stock?: number;
+          image_url?: string;
+          is_featured?: boolean;
+          featured_position?: number;
+          is_active?: boolean;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -86,6 +96,11 @@ export interface Database {
           description?: string;
           origin?: string | null;
           stock?: number;
+          image_url?: string;
+          is_featured?: boolean;
+          featured_position?: number;
+          is_active?: boolean;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -94,6 +109,40 @@ export interface Database {
             foreignKeyName: "products_category_id_fkey";
             columns: ["category_id"];
             referencedRelation: "categories";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      product_images: {
+        Row: {
+          id: string;
+          product_id: string;
+          url: string;
+          alt: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          url: string;
+          alt?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          url?: string;
+          alt?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
             referencedColumns: ["id"];
           }
         ];
@@ -107,6 +156,9 @@ export interface Database {
           delivery: number;
           total: number;
           address: Json;
+          courier: string | null;
+          tracking_number: string | null;
+          estimated_delivery: string | null;
           created_at: string;
         };
         Insert: {
@@ -117,6 +169,9 @@ export interface Database {
           delivery?: number;
           total: number;
           address: Json;
+          courier?: string | null;
+          tracking_number?: string | null;
+          estimated_delivery?: string | null;
           created_at?: string;
         };
         Update: {
@@ -127,6 +182,9 @@ export interface Database {
           delivery?: number;
           total?: number;
           address?: Json;
+          courier?: string | null;
+          tracking_number?: string | null;
+          estimated_delivery?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -400,6 +458,92 @@ export interface Database {
             foreignKeyName: "wishlist_items_product_id_fkey";
             columns: ["product_id"];
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      addresses: {
+        Row: {
+          id: string;
+          user_id: string;
+          label: string;
+          name: string;
+          line1: string;
+          line2: string | null;
+          city: string;
+          postcode: string;
+          country: string;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          label?: string;
+          name: string;
+          line1: string;
+          line2?: string | null;
+          city: string;
+          postcode: string;
+          country?: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          label?: string;
+          name?: string;
+          line1?: string;
+          line2?: string | null;
+          city?: string;
+          postcode?: string;
+          country?: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "addresses_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      payment_methods: {
+        Row: {
+          id: string;
+          user_id: string;
+          brand: string;
+          last4: string;
+          expiry: string;
+          is_default: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          brand: string;
+          last4: string;
+          expiry: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          brand?: string;
+          last4?: string;
+          expiry?: string;
+          is_default?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];

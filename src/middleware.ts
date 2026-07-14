@@ -1,11 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const ADMIN_PREFIX = "/admin";
+// Customer-facing routes that require a signed-in user
+const PROTECTED_PREFIXES = ["/account", "/checkout"];
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only protect /admin routes
-  if (!pathname.startsWith("/admin")) {
+  const isAdmin = pathname.startsWith(ADMIN_PREFIX);
+  const isProtected =
+    isAdmin || PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+
+  if (!isProtected) {
     return NextResponse.next();
   }
 
@@ -41,7 +48,12 @@ export async function middleware(request: NextRequest) {
 
   if (!user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/admin/login";
+    if (isAdmin) {
+      url.pathname = "/admin/login";
+    } else {
+      url.pathname = "/login";
+      url.searchParams.set("redirect", pathname);
+    }
     return NextResponse.redirect(url);
   }
 
@@ -49,5 +61,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: "/admin/:path*",
+  matcher: ["/admin/:path*", "/account/:path*", "/checkout/:path*"],
 };

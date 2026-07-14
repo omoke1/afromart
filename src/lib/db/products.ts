@@ -10,6 +10,16 @@ export async function getProducts(): Promise<ProductRow[]> {
   return data ?? [];
 }
 
+export async function getActiveProducts(): Promise<ProductRow[]> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .order("name");
+  return data ?? [];
+}
+
 export async function getProduct(id: string): Promise<ProductRow | null> {
   const supabase = await createServerSupabase();
   const { data } = await supabase.from("products").select("*").eq("id", id).single();
@@ -26,6 +36,59 @@ export async function getLowStockProducts(threshold = 10): Promise<ProductRow[]>
   const supabase = await createServerSupabase();
   const { data } = await supabase.from("products").select("*").lte("stock", threshold).order("stock");
   return data ?? [];
+}
+
+export async function getFeaturedProducts(): Promise<ProductRow[]> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .eq("is_featured", true)
+    .order("featured_position")
+    .order("name");
+  return data ?? [];
+}
+
+export async function getNewArrivals(limit = 8): Promise<ProductRow[]> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
+export async function getBestSellers(limit = 10): Promise<ProductRow[]> {
+  const supabase = await createServerSupabase();
+  const { data } = await supabase
+    .from("order_items")
+    .select("product_id, qty")
+    .order("qty", { ascending: false });
+  if (!data) return [];
+
+  const qtyMap = new Map<string, number>();
+  for (const row of data) {
+    qtyMap.set(row.product_id, (qtyMap.get(row.product_id) ?? 0) + row.qty);
+  }
+
+  const sortedIds = [...qtyMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+
+  if (sortedIds.length === 0) return [];
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .in("id", sortedIds);
+
+  const productMap = new Map((products ?? []).map((p) => [p.id, p]));
+  return sortedIds.map((id) => productMap.get(id)).filter(Boolean) as ProductRow[];
 }
 
 // Admin operations

@@ -4,6 +4,7 @@ import Footer from "@/components/layout/Footer";
 import HeroCarousel from "@/components/sections/HeroCarousel";
 import ShopByCategory from "@/components/sections/ShopByCategory";
 import BestSellers from "@/components/sections/BestSellers";
+import NewArrivals from "@/components/sections/NewArrivals";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       <HeroCarousel />
       <ShopByCategory />
       <BestSellers />
+      <NewArrivals />
       <div className="mt-20" />
       <Footer />
     </main>

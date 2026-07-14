@@ -64,6 +64,8 @@ export default function WishlistPage() {
         <nav className="flex items-center gap-2 text-sm text-ink-muted mb-8 flex-wrap">
           <Link href="/" className="hover:text-dark">Home</Link>
           <ChevronRight className="w-3.5 h-3.5" />
+          <Link href="/account" className="hover:text-dark">Account</Link>
+          <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-dark">Wishlist</span>
         </nav>
 

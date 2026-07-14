@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { useCart, useCartLines } from "@/lib/cart";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 /* ─── tiny helpers ─────────────────────────────────────────── */
 
@@ -49,24 +48,52 @@ function SectionHeader({ step, icon, title }: { step: number; icon?: React.React
 /* ─── main export ───────────────────────────────────────────── */
 
 export function InteractiveCheckout() {
-    const router = useRouter();
-    const { setQty, remove, clear, subtotal, hydrated } = useCart();
+    const { lines: rawLines, setQty, remove, subtotal, hydrated } = useCart();
     const lines = useCartLines();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const deliveryFee = subtotal >= 40 || subtotal === 0 ? 0 : 4.99;
     const totalPrice = subtotal + deliveryFee;
     const totalItems = lines.reduce((s, i) => s + i.qty, 0);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (lines.length === 0) return;
+        setError(null);
         setIsSubmitting(true);
-        const orderId = "AFM-" + Math.random().toString(36).slice(2, 8).toUpperCase();
-        setTimeout(() => {
-            clear();
-            router.push(`/order/success?id=${orderId}&total=${totalPrice.toFixed(2)}`);
-        }, 1200);
+
+        const fd = new FormData(e.currentTarget);
+        const address = {
+            email: String(fd.get("email") ?? ""),
+            phone: String(fd.get("phone") ?? ""),
+            name: String(fd.get("name") ?? ""),
+            address1: String(fd.get("address1") ?? ""),
+            address2: String(fd.get("address2") ?? ""),
+            city: String(fd.get("city") ?? ""),
+            postcode: String(fd.get("postcode") ?? ""),
+            country: String(fd.get("country") ?? "United Kingdom"),
+        };
+
+        try {
+            const res = await fetch("/api/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    lines: rawLines.map((l) => ({ productId: l.productId, qty: l.qty })),
+                    address,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.url) {
+                throw new Error(data.error ?? "Something went wrong. Please try again.");
+            }
+            // Cart is cleared on the success page after payment confirms.
+            window.location.href = data.url;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Checkout failed. Please try again.");
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -126,18 +153,22 @@ export function InteractiveCheckout() {
                         {/* Payment */}
                         <section>
                             <SectionHeader step={3} icon={<CreditCard className="w-4 h-4" />} title="Payment" />
-                            <div className="space-y-4 pl-10">
-                                <Field label="Card number" name="card" required placeholder="4242 4242 4242 4242" />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Field label="Expiry (MM / YY)" name="expiry" required placeholder="12 / 28" />
-                                    <Field label="CVC" name="cvc" required placeholder="123" />
+                            <div className="space-y-3 pl-10">
+                                <div className="flex items-start gap-3 p-4 rounded-2xl bg-surface border border-line">
+                                    <Lock className="w-4 h-4 text-dark mt-0.5 shrink-0" />
+                                    <div>
+                                        <p className="text-sm font-medium text-dark">Secure payment via Stripe</p>
+                                        <p className="text-xs text-ink-muted mt-1">
+                                            You&apos;ll be redirected to Stripe&apos;s secure checkout to enter your
+                                            card details. We never see or store your card information.
+                                        </p>
+                                    </div>
                                 </div>
-                                <Field label="Name on card" name="cardName" required />
-
-                                <p className="flex items-center gap-1.5 text-xs text-ink-muted pt-1">
-                                    <Lock className="w-3 h-3" />
-                                    Demo checkout — no real payment is processed.
-                                </p>
+                                {error && (
+                                    <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                        {error}
+                                    </p>
+                                )}
                             </div>
                         </section>
                     </div>
@@ -258,12 +289,12 @@ export function InteractiveCheckout() {
                                 {isSubmitting ? (
                                     <>
                                         <CheckCircle2 className="w-5 h-5 animate-pulse" />
-                                        Processing…
+                                        Redirecting to Stripe…
                                     </>
                                 ) : (
                                     <>
                                         <Lock className="w-5 h-5" />
-                                        Pay £{totalPrice.toFixed(2)}
+                                        Continue to payment · £{totalPrice.toFixed(2)}
                                     </>
                                 )}
                             </Button>

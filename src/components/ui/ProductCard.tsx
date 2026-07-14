@@ -15,6 +15,7 @@ type ProductCardProduct = {
   bg_color: string;
   badge: string | null;
   weight: string;
+  image_url?: string;
 };
 
 export default function ProductCard({ product }: { product: ProductCardProduct }) {
@@ -44,9 +45,18 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
           className="aspect-square rounded-2xl flex items-center justify-center text-7xl overflow-hidden"
           style={{ backgroundColor: product.bg_color }}
         >
-          <span className="transition-transform duration-500 ease-out group-hover:scale-110">
-            {product.emoji}
-          </span>
+          {product.image_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className="w-full h-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
+            />
+          ) : (
+            <span className="transition-transform duration-500 ease-out group-hover:scale-110">
+              {product.emoji}
+            </span>
+          )}
         </div>
       </Link>
 

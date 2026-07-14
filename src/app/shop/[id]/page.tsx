@@ -17,7 +17,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .select("*, categories(name, slug)")
     .eq("id", id)
     .single();
-  const product = productRaw.data as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; origin: string | null; stock: number; category_id: string; categories: { name: string; slug: string } | null } | null;
+  const product = productRaw.data as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null } | null;
 
   if (!product) notFound();
 
@@ -29,7 +29,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .eq("category_id", product.category_id)
     .neq("id", product.id)
     .limit(4);
-  const related = (relatedRaw.data ?? []) as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; categories: { name: string } | null }[];
+  const related = (relatedRaw.data ?? []) as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null }[];
 
   const displayProduct = {
     id: product.id,
@@ -45,6 +45,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     description: product.description,
     origin: product.origin,
     stock: product.stock,
+    image_url: product.image_url ?? "",
   };
 
   const relatedProducts = (related ?? []).map((p) => {
@@ -59,6 +60,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       bg_color: p.bg_color,
       badge: p.badge,
       weight: p.weight,
+      image_url: p.image_url ?? "",
     };
   });
 
@@ -80,10 +82,19 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
           <div
-            className="aspect-square rounded-3xl flex items-center justify-center text-[180px] lg:text-[220px]"
+            className="aspect-square rounded-3xl flex items-center justify-center text-[180px] lg:text-[220px] overflow-hidden"
             style={{ backgroundColor: displayProduct.bg_color }}
           >
-            {displayProduct.emoji}
+            {displayProduct.image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={displayProduct.image_url}
+                alt={displayProduct.name}
+                className="w-full h-full object-contain p-6"
+              />
+            ) : (
+              displayProduct.emoji
+            )}
           </div>
 
           <div className="flex flex-col">

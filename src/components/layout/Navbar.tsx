@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ExpandingSearchDock } from "@/components/ui/expanding-search-dock-shadcnui";
 import UserIcon from "@/components/icons/user-icon";
+import DeliverTo from "@/components/layout/DeliverTo";
 import { useCart } from "@/lib/cart";
+
+const DELIVER_TO_KEY = "afromart.deliverTo";
 
 const categories = [
   "All Categories",
@@ -21,8 +24,24 @@ export default function Navbar() {
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
+  const [deliverTo, setDeliverTo] = useState("London E1");
   const { count, openDrawer } = useCart();
   const router = useRouter();
+
+  // Load / persist the chosen delivery location
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DELIVER_TO_KEY);
+      if (saved) setDeliverTo(saved);
+    } catch {}
+  }, []);
+
+  function updateDeliverTo(v: string) {
+    setDeliverTo(v);
+    try {
+      localStorage.setItem(DELIVER_TO_KEY, v);
+    } catch {}
+  }
 
   return (
     <header className="bg-brand max-md:sticky max-md:top-0 max-md:z-50">
@@ -54,17 +73,10 @@ export default function Navbar() {
           <span className="text-white font-semibold text-lg tracking-tight hidden sm:inline">AfroMart</span>
         </Link>
 
-        {/* Deliver to (Amazon-style) */}
-        <button className="hidden lg:flex items-center gap-1.5 text-white hover:bg-white/10 rounded-lg px-2.5 py-1.5 shrink-0">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <div className="text-left leading-tight">
-            <p className="text-[10px] text-white/70">Deliver to</p>
-            <p className="text-xs font-semibold text-white">London E1 ▾</p>
-          </div>
-        </button>
+        {/* Deliver to — working location picker (desktop) */}
+        <div className={`shrink-0 ${searchExpanded ? "hidden lg:block" : "hidden md:block"}`}>
+          <DeliverTo value={deliverTo} onChange={updateDeliverTo} variant="pill" />
+        </div>
 
         {/* Expanding search dock + optional category quick-pick */}
         <div className="flex-1 flex items-center justify-end gap-3 mx-1">
@@ -117,6 +129,13 @@ export default function Navbar() {
           <UserIcon size={20} strokeWidth={1.8} />
         </Link>
         </div>
+
+        {/* Deliver to — mobile bar (below the main row) */}
+        {!searchExpanded && (
+          <div className="md:hidden border-t border-white/10 py-1">
+            <DeliverTo value={deliverTo} onChange={updateDeliverTo} variant="row" />
+          </div>
+        )}
       </div>
 
       {/* Left sidebar drawer */}
