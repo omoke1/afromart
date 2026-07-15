@@ -17,13 +17,28 @@ export default function AdminLoginPage() {
     setError("");
 
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (authError) {
       setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    // Verify this account is actually an admin before entering the dashboard —
+    // otherwise the layout would bounce them straight back out.
+    const { data: role } = await supabase
+      .from("admin_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+
+    if (!role) {
+      await supabase.auth.signOut();
+      setError("This account does not have admin access.");
       setLoading(false);
       return;
     }

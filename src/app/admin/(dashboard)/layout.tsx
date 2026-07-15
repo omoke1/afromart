@@ -1,21 +1,16 @@
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 
+// This layout lives in the (dashboard) route group, so it wraps every admin
+// page EXCEPT /admin/login — the login page must never run this auth check,
+// otherwise redirecting to it loops forever.
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const h = await headers();
-  const url = h.get("x-next-url") ?? "";
-
-  if (url.startsWith("/admin/login")) {
-    return <>{children}</>;
-  }
-
   const supabase = await createServerSupabase();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -31,7 +26,9 @@ export default async function AdminLayout({
     .single();
 
   if (!role) {
-    redirect("/admin/login");
+    // Signed in but not an admin — send them to the shop, not back to the
+    // admin login page (they're already authenticated; that would loop).
+    redirect("/");
   }
 
   return (
