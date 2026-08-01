@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { stripe, DELIVERY_FEE_PENCE, FREE_DELIVERY_THRESHOLD_PENCE } from "@/lib/stripe";
+import { stripe } from "@/lib/stripe";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { calculateShippingFee, parseWeightKg } from "@/lib/weight";
 import type { Json } from "@/lib/supabase/types";
 
-type IncomingLine = { productId: string; qty: number };
+type IncomingLine = { productId: string; optionId?: string | null; qty: number };
 
 type Address = {
   email: string;
@@ -51,19 +52,32 @@ export async function POST(req: NextRequest) {
   // Re-fetch real prices server-side — never trust client-sent prices.
   const admin = createAdminClient();
   const ids = lines.map((l) => l.productId);
-  const { data: products, error: prodErr } = await admin
-    .from("products")
-    .select("id, name, price, emoji, stock")
-    .in("id", ids);
+  const [{ data: settingsData }, { data: products, error: prodErr }] = await Promise.all([
+    admin.from("shipping_settings").select("*").eq("id", "default").maybeSingle(),
+    admin
+      .from("products")
+      .select("id, name, price, emoji, stock, weight, product_options(id, weight, price, stock)")
+      .in("id", ids),
+  ]);
+
+  const shippingSettings = settingsData ?? {
+    id: "default",
+    base_fee: 4.99,
+    per_kg_fee: 1.25,
+    free_delivery_threshold: 40,
+    enabled: true,
+  };
 
   if (prodErr || !products || products.length === 0) {
     return NextResponse.json({ error: "Could not load products." }, { status: 500 });
   }
 
+  type Option = { id: string; weight: string; price: number; stock: number };
   const priceById = new Map(products.map((p) => [p.id, p]));
 
-  // Build verified line items
+  // Build verified line items and accumulate shipping weight.
   let subtotalPence = 0;
+  let totalKg = 0;
   const stripeLineItems: {
     quantity: number;
     price_data: {
@@ -72,36 +86,52 @@ export async function POST(req: NextRequest) {
       product_data: { name: string };
     };
   }[] = [];
-  const orderItems: { product_id: string; qty: number; unit_price: number }[] = [];
+  const orderItems: { product_id: string; qty: number; unit_price: number; weight: string; option_id: string | null }[] = [];
 
   for (const line of lines) {
     const product = priceById.get(line.productId);
     if (!product) continue;
-    const unitPence = Math.round(Number(product.price) * 100);
+
+    const option = line.optionId
+      ? ((product.product_options as unknown as Option[] | null) ?? []).find((o) => o.id === line.optionId)
+      : undefined;
+
+    const unitPrice = option ? Number(option.price) : Number(product.price);
+    const weight = option?.weight ?? ((product.weight as string | null) ?? "");
+    const unitPence = Math.round(unitPrice * 100);
     subtotalPence += unitPence * line.qty;
 
+    const label = weight ? `${product.name} (${weight})` : product.name;
     stripeLineItems.push({
       quantity: line.qty,
       price_data: {
         currency: "gbp",
         unit_amount: unitPence,
-        product_data: { name: `${product.emoji ? product.emoji + " " : ""}${product.name}` },
+        product_data: { name: `${product.emoji ? product.emoji + " " : ""}${label}` },
       },
     });
     orderItems.push({
       product_id: product.id,
       qty: line.qty,
-      unit_price: Number(product.price),
+      unit_price: unitPrice,
+      weight,
+      option_id: option?.id ?? null,
     });
+
+    const parsedKg = parseWeightKg(weight);
+    if (parsedKg !== null) {
+      totalKg += parsedKg * line.qty;
+    }
   }
 
   if (stripeLineItems.length === 0) {
     return NextResponse.json({ error: "No valid products in basket." }, { status: 400 });
   }
 
-  const deliveryPence =
-    subtotalPence >= FREE_DELIVERY_THRESHOLD_PENCE ? 0 : DELIVERY_FEE_PENCE;
-  const totalPence = subtotalPence + deliveryPence;
+  const shippingFeePence = !shippingSettings.enabled || subtotalPence >= Math.round(shippingSettings.free_delivery_threshold * 100)
+    ? 0
+    : Math.round(calculateShippingFee(totalKg, shippingSettings) * 100);
+  const totalPence = subtotalPence + shippingFeePence;
 
   // Create a pending order first so we can reconcile via webhook
   const orderId = crypto.randomUUID();
@@ -112,7 +142,7 @@ export async function POST(req: NextRequest) {
       user_id: user?.id ?? null,
       status: "Preparing",
       subtotal: subtotalPence / 100,
-      delivery: deliveryPence / 100,
+      delivery: shippingFeePence / 100,
       total: totalPence / 100,
       address: address as unknown as Json,
     })
@@ -143,12 +173,12 @@ export async function POST(req: NextRequest) {
     process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
 
   // Add delivery as its own line item when charged
-  if (deliveryPence > 0) {
+  if (shippingFeePence > 0) {
     stripeLineItems.push({
       quantity: 1,
       price_data: {
         currency: "gbp",
-        unit_amount: deliveryPence,
+        unit_amount: shippingFeePence,
         product_data: { name: "Delivery (24–48h UK)" },
       },
     });

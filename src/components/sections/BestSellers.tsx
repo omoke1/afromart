@@ -20,6 +20,7 @@ type Product = {
   origin: string | null;
   stock: number;
   image_url: string;
+  options?: { id: string; weight: string; price: number; stock: number }[];
 };
 
 export default function BestSellers() {
@@ -38,7 +39,7 @@ export default function BestSellers() {
 
     supabase
       .from("products")
-      .select("*, categories(name)")
+      .select("*, categories(name), product_options(id, weight, price, stock)")
       .eq("is_active", true)
       .order("featured_position")
       .order("name")
@@ -60,6 +61,9 @@ export default function BestSellers() {
             stock: p.stock as number,
             image_url: (p.image_url as string) ?? "",
             category: ((p.categories as { name?: string } | null)?.name ?? "") as string,
+            options: ((p.product_options as { id: string; weight: string; price: number; stock: number }[] | null) ?? [])
+              .map((o) => ({ id: o.id, weight: o.weight, price: Number(o.price), stock: o.stock }))
+              .sort((a, b) => a.price - b.price),
           }));
         setProducts(enriched);
       });

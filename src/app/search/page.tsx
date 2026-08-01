@@ -23,6 +23,7 @@ type SearchProduct = {
   weight: string;
   description: string;
   origin: string | null;
+  options?: { id: string; weight: string; price: number; stock: number }[];
 };
 
 type SearchCategory = {
@@ -44,8 +45,8 @@ function SearchInner() {
       const catRaw = await supabase.from("categories").select("name, slug").order("name");
       if (catRaw.data) setCategories(catRaw.data as SearchCategory[]);
 
-      const prodRaw = await supabase.from("products").select("*, categories(name, slug)").order("name");
-      const prodData = prodRaw.data as { id: string; name: string; price: number; compare_at: number | null; emoji: string; bg_color: string; badge: string | null; weight: string; description: string; origin: string | null; categories: { name: string; slug: string } | null }[] | null;
+      const prodRaw = await supabase.from("products").select("*, categories(name, slug), product_options(id, weight, price, stock)").order("name");
+      const prodData = prodRaw.data as { id: string; name: string; price: number; compare_at: number | null; emoji: string; bg_color: string; badge: string | null; weight: string; description: string; origin: string | null; categories: { name: string; slug: string } | null; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
       if (!prodData) return;
 
       setProducts(
@@ -64,6 +65,9 @@ function SearchInner() {
             weight: p.weight,
             description: p.description,
             origin: p.origin,
+            options: (p.product_options ?? [])
+              .map((o) => ({ id: o.id, weight: o.weight, price: Number(o.price), stock: o.stock }))
+              .sort((a, b) => a.price - b.price),
           };
         })
       );

@@ -46,7 +46,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     .in("id", [...productIds]);
 
   type ProductRow = { id: string; name: string; emoji: string; bg_color: string; price: number; weight: string; category_id: string; categories: { name: string } };
-  type ItemRow = { product_id: string; qty: number; unit_price: number };
+  type ItemRow = { product_id: string; qty: number; unit_price: number; weight?: string; option_id?: string | null };
 
   const items2 = (items ?? []) as ItemRow[];
   const products2 = (products ?? []) as ProductRow[];
@@ -56,6 +56,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
     const p = productMap.get(i.product_id);
     return {
       productId: i.product_id,
+      optionId: i.option_id ?? null,
       qty: i.qty,
       product: p
         ? {
@@ -65,12 +66,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             emoji: p.emoji,
             bg_color: p.bg_color,
             price: Number(i.unit_price),
-            weight: p.weight,
+            weight: i.weight || p.weight,
           }
         : null,
     };
   }).filter((l) => l.product !== null) as {
     productId: string;
+    optionId: string | null;
     qty: number;
     product: { id: string; name: string; category: string; emoji: string; bg_color: string; price: number; weight: string };
   }[];

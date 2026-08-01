@@ -10,6 +10,9 @@ import AccountSidebar from "@/components/layout/AccountSidebar";
 import { useWishlist } from "@/lib/wishlist";
 import { useCart } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
+import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
+import { useExchangeRates } from '@/lib/useExchangeRates';
+import formatCurrency from '@/lib/currency';
 
 type WishlistProduct = {
   id: string;
@@ -20,12 +23,15 @@ type WishlistProduct = {
   weight: string;
   category: string;
   category_slug: string;
+  options?: { id: string; weight: string; price: number; stock: number }[];
 };
 
 export default function WishlistPage() {
   const { ids, remove, hydrated } = useWishlist();
   const { add } = useCart();
   const [items, setItems] = useState<WishlistProduct[]>([]);
+  const { currency: preferred } = usePreferredCurrency('GBP');
+  const { convert, base } = useExchangeRates();
 
   useEffect(() => {
     if (!hydrated || ids.length === 0) return;
@@ -33,7 +39,7 @@ export default function WishlistPage() {
     const supabase = createClient();
     supabase
       .from("products")
-      .select("*, categories(name, slug)")
+      .select("*, categories(name, slug), product_options(id, weight, price, stock)")
       .in("id", ids)
       .then(({ data }) => {
         if (!data) return;
@@ -49,6 +55,9 @@ export default function WishlistPage() {
               weight: p.weight,
               category: cat?.name ?? "",
               category_slug: cat?.slug ?? "",
+              options: ((p.product_options as unknown as { id: string; weight: string; price: number; stock: number }[] | null) ?? [])
+                .map((o) => ({ id: o.id, weight: o.weight, price: Number(o.price), stock: o.stock }))
+                .sort((a, b) => a.price - b.price),
             };
           })
         );
@@ -112,10 +121,16 @@ export default function WishlistPage() {
                       <Link href={`/shop/${product.id}`} className="font-medium text-dark hover:text-brand line-clamp-1">
                         {product.name}
                       </Link>
-                      <p className="text-xs text-ink-muted mt-1">{product.weight}</p>
+                      <p className="text-xs text-ink-muted mt-1">
+                        {product.options && product.options.length > 1
+                          ? `${product.options.length} sizes`
+                          : product.weight}
+                      </p>
                     </div>
-                    <p className="hidden sm:block font-semibold text-dark w-20 text-right">
-                      £{product.price.toFixed(2)}
+                    <p className="hidden sm:block font-semibold text-dark w-24 text-right">
+                      {product.options && product.options.length > 1
+                        ? (() => { const p = Math.min(...product.options.map((o) => o.price)); const conv = preferred && preferred !== base ? convert(p, preferred) : null; return `from ${formatCurrency(p, base)}${conv ? ` · ${formatCurrency(conv, preferred)}` : ''}` })()
+                        : (() => { const conv = preferred && preferred !== base ? convert(product.price, preferred) : null; return `${formatCurrency(product.price, base)}${conv ? ` · ${formatCurrency(conv, preferred)}` : ''}` })()}
                     </p>
                     <button
                       onClick={() => { add(product.id, 1); remove(product.id); }}

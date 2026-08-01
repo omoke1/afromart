@@ -7,6 +7,9 @@ import { ExpandingSearchDock } from "@/components/ui/expanding-search-dock-shadc
 import UserIcon from "@/components/icons/user-icon";
 import DeliverTo from "@/components/layout/DeliverTo";
 import { useCart } from "@/lib/cart";
+import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
+
+type Currency = { code: string; name: string; symbol: string; rate_to_base: number };
 
 const DELIVER_TO_KEY = "afromart.deliverTo";
 
@@ -27,6 +30,8 @@ export default function Navbar() {
   const [deliverTo, setDeliverTo] = useState("London E1");
   const { count, openDrawer } = useCart();
   const router = useRouter();
+  const { currency: preferred, setCurrency: setPreferred } = usePreferredCurrency('GBP');
+  const [available, setAvailable] = useState<Currency[]>([{ code: 'GBP', name: 'Pound Sterling', symbol: '£', rate_to_base: 1 }]);
 
   // Load / persist the chosen delivery location
   useEffect(() => {
@@ -34,6 +39,18 @@ export default function Navbar() {
       const saved = localStorage.getItem(DELIVER_TO_KEY);
       if (saved) setDeliverTo(saved);
     } catch {}
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/currencies');
+        const json = await res.json();
+        setAvailable(json.data ?? []);
+      } catch (e) {
+        // ignore
+      }
+    })();
   }, []);
 
   function updateDeliverTo(v: string) {
@@ -119,6 +136,23 @@ export default function Navbar() {
             {count}
           </span>
         </button>
+
+        {/* Currency selector */}
+        <select
+          value={preferred}
+          onChange={async (e) => {
+            const code = e.target.value;
+            setPreferred(code);
+            try {
+              await fetch('/api/profile/currency', { method: 'POST', body: JSON.stringify({ code }) });
+            } catch (err) {}
+          }}
+          className="ml-3 bg-white text-xs rounded-full px-3 py-2"
+        >
+          {available.map((c) => (
+            <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>
+          ))}
+        </select>
 
         {/* Account avatar — animated user icon */}
         <Link

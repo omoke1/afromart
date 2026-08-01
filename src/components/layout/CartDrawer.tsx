@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Minus, Plus, X, ShoppingBag, ChevronsRight } from "lucide-react";
 import { useCart, useCartLines } from "@/lib/cart";
-
-const FREE_DELIVERY_THRESHOLD = 40;
-const DELIVERY_FEE = 4.99;
+import { useExchangeRates } from '@/lib/useExchangeRates';
+import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
+import formatCurrency from '@/lib/currency';
+import { calculateShippingFee, parseWeightKg } from '@/lib/weight';
+import { useShippingSettings } from '@/lib/useShippingSettings';
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
@@ -21,7 +23,7 @@ function useMediaQuery(query: string) {
 }
 
 export default function CartDrawer() {
-  const { drawerOpen, closeDrawer, subtotal, setQty, remove, count } = useCart();
+  const { drawerOpen, closeDrawer, subtotal, setLineQty, removeLine, count, focusedProduct, openProductDrawer, add } = useCart();
   const lines = useCartLines();
   const isMobile = useMediaQuery("(max-width: 767px)");
 
@@ -46,10 +48,26 @@ export default function CartDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawerOpen, closeDrawer]);
 
-  const delivery = subtotal >= FREE_DELIVERY_THRESHOLD || subtotal === 0 ? 0 : DELIVERY_FEE;
+  const { settings } = useShippingSettings();
+  const totalKg = lines.reduce((sum, line) => {
+    const parsedKg = parseWeightKg(line.product.weight);
+    return sum + (parsedKg ?? 0) * line.qty;
+  }, 0);
+
+  const delivery = !settings.enabled || subtotal >= settings.free_delivery_threshold || subtotal === 0
+    ? 0
+    : calculateShippingFee(totalKg, settings);
   const total = subtotal + delivery;
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const progress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100);
+  const remaining = Math.max(0, settings.free_delivery_threshold - subtotal);
+  const progress = settings.enabled
+    ? Math.min(100, (subtotal / settings.free_delivery_threshold) * 100)
+    : 100;
+
+  const { currency: preferred } = usePreferredCurrency('GBP');
+  const { convert, base } = useExchangeRates();
+  const convertedSubtotal = preferred && preferred !== base ? convert(subtotal, preferred) : null;
+  const convertedDelivery = preferred && preferred !== base ? convert(delivery, preferred) : null;
+  const convertedTotal = preferred && preferred !== base ? convert(total, preferred) : null;
 
   return (
     <>
@@ -96,16 +114,22 @@ export default function CartDrawer() {
           </button>
         </header>
 
-        {/* Free-delivery progress */}
+        {/* Shipping progress */}
         {count > 0 && (
           <div className="px-6 pt-5 pb-4 border-b border-line shrink-0">
-            {remaining > 0 ? (
-              <p className="text-xs text-ink-soft mb-2">
-                Add <strong className="text-dark">£{remaining.toFixed(2)}</strong> more for free UK delivery.
-              </p>
+            {settings.enabled ? (
+              remaining > 0 ? (
+                <p className="text-xs text-ink-soft mb-2">
+                  Add <strong className="text-dark">£{remaining.toFixed(2)}</strong> more for free UK delivery.
+                </p>
+              ) : (
+                <p className="text-xs text-dark mb-2">
+                  🎉 You&apos;ve unlocked <strong>free UK delivery</strong>.
+                </p>
+              )
             ) : (
-              <p className="text-xs text-dark mb-2">
-                🎉 You&apos;ve unlocked <strong>free UK delivery</strong>.
+              <p className="text-xs text-ink-soft mb-2">
+                Shipping charges are currently <strong>disabled</strong>.
               </p>
             )}
             <div className="h-1.5 bg-surface rounded-full overflow-hidden">
@@ -117,9 +141,37 @@ export default function CartDrawer() {
           </div>
         )}
 
-        {/* Lines */}
+        {/* Lines or focused product options */}
         <div className="flex-1 overflow-y-auto">
-          {lines.length === 0 ? (
+          {focusedProduct ? (
+            <div className="px-6">
+              <h3 className="text-sm font-semibold text-dark">{focusedProduct.name}</h3>
+              <p className="text-xs text-ink-muted">Select your preferred option</p>
+              <div className="mt-4 space-y-3">
+                {(focusedProduct.options || []).map((opt) => (
+                  <div key={opt.id} className="flex items-center justify-between gap-3 bg-white rounded-md px-3 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-md bg-surface flex items-center justify-center text-lg">{/* thumbnail placeholder */}</div>
+                      <div>
+                        <div className="text-sm font-medium text-dark">{opt.label}</div>
+                        {opt.price && <div className="text-xs text-ink-muted">{typeof opt.price === 'number' ? `£${Number(opt.price).toFixed(2)}` : opt.price}</div>}
+                      </div>
+                    </div>
+                    <div>
+                      <button
+                        onClick={() => {
+                          add(focusedProduct.id, 1, opt.id || null);
+                        }}
+                        className="w-10 h-10 rounded-full bg-gold text-white flex items-center justify-center"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : lines.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-8">
               <div className="w-14 h-14 rounded-full bg-surface flex items-center justify-center mb-4">
                 <ShoppingBag className="w-6 h-6 text-ink-muted" />
@@ -136,8 +188,8 @@ export default function CartDrawer() {
             </div>
           ) : (
             <ul className="divide-y divide-line px-6">
-              {lines.map(({ product, qty }) => (
-                <li key={product.id} className="py-5 flex gap-3">
+              {lines.map(({ key, product, qty }) => (
+                <li key={key} className="py-5 flex gap-3">
                   <Link
                     href={`/shop/${product.id}`}
                     onClick={closeDrawer}
@@ -162,7 +214,7 @@ export default function CartDrawer() {
                     <div className="mt-auto pt-2 flex items-center justify-between gap-3">
                       <div className="flex items-center border border-line rounded-full px-1 h-8">
                         <button
-                          onClick={() => setQty(product.id, qty - 1)}
+                          onClick={() => setLineQty(key, qty - 1)}
                           aria-label="Decrease quantity"
                           className="w-6 h-6 rounded-full hover:bg-surface text-dark flex items-center justify-center"
                         >
@@ -170,7 +222,7 @@ export default function CartDrawer() {
                         </button>
                         <span className="w-7 text-center font-semibold text-dark text-xs">{qty}</span>
                         <button
-                          onClick={() => setQty(product.id, qty + 1)}
+                          onClick={() => setLineQty(key, qty + 1)}
                           aria-label="Increase quantity"
                           className="w-6 h-6 rounded-full hover:bg-surface text-dark flex items-center justify-center"
                         >
@@ -183,7 +235,7 @@ export default function CartDrawer() {
                     </div>
                   </div>
                   <button
-                    onClick={() => remove(product.id)}
+                    onClick={() => removeLine(key)}
                     aria-label={`Remove ${product.name}`}
                     className="w-7 h-7 rounded-full text-ink-muted hover:text-brand flex items-center justify-center shrink-0 -mt-1"
                   >
@@ -201,34 +253,59 @@ export default function CartDrawer() {
             <dl className="space-y-2 text-sm mb-4">
               <div className="flex justify-between">
                 <dt className="text-ink-soft">Subtotal</dt>
-                <dd className="text-dark font-medium">£{subtotal.toFixed(2)}</dd>
+                <dd className="text-dark font-medium">{formatCurrency(subtotal, base)}{convertedSubtotal ? ` · ${formatCurrency(convertedSubtotal, preferred)}` : ''}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-ink-soft">Delivery</dt>
                 <dd className="text-dark font-medium">
-                  {delivery === 0 ? "Free" : `£${delivery.toFixed(2)}`}
+                  {delivery === 0 ? "Free" : `${formatCurrency(delivery, base)}${convertedDelivery ? ` · ${formatCurrency(convertedDelivery, preferred)}` : ''}`}
                 </dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-ink-soft">Shipping weight</dt>
+                <dd className="text-dark font-medium">{totalKg.toFixed(2)} kg</dd>
               </div>
               <div className="flex justify-between pt-2 border-t border-line">
                 <dt className="text-dark font-semibold">Total</dt>
-                <dd className="text-dark font-semibold text-lg">£{total.toFixed(2)}</dd>
+                <dd className="text-dark font-semibold text-lg">{formatCurrency(total, base)}{convertedTotal ? ` · ${formatCurrency(convertedTotal, preferred)}` : ''}</dd>
               </div>
             </dl>
 
-            <Link
-              href="/checkout"
-              onClick={closeDrawer}
-              className="w-full h-12 rounded-full bg-dark text-white text-sm font-semibold hover:bg-brand transition-colors flex items-center justify-center"
-            >
-              Proceed to checkout
-            </Link>
-            <Link
-              href="/cart"
-              onClick={closeDrawer}
-              className="mt-2 w-full text-center text-sm font-medium text-ink-soft hover:text-dark block"
-            >
-              View full cart
-            </Link>
+            {focusedProduct ? (
+              <>
+                <Link
+                  href="/cart"
+                  onClick={closeDrawer}
+                  className="w-full h-12 rounded-full bg-dark text-white text-sm font-semibold hover:bg-brand transition-colors flex items-center justify-center"
+                >
+                  Continue
+                </Link>
+                <Link
+                  href="/cart"
+                  onClick={closeDrawer}
+                  className="mt-2 w-full text-center text-sm font-medium text-ink-soft hover:text-dark block"
+                >
+                  View full cart
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/checkout"
+                  onClick={closeDrawer}
+                  className="w-full h-12 rounded-full bg-dark text-white text-sm font-semibold hover:bg-brand transition-colors flex items-center justify-center"
+                >
+                  Proceed to checkout
+                </Link>
+                <Link
+                  href="/cart"
+                  onClick={closeDrawer}
+                  className="mt-2 w-full text-center text-sm font-medium text-ink-soft hover:text-dark block"
+                >
+                  View full cart
+                </Link>
+              </>
+            )}
           </footer>
         )}
       </aside>

@@ -110,6 +110,55 @@ export interface Database {
             columns: ["category_id"];
             referencedRelation: "categories";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "product_options_product_id_fkey";
+            columns: ["id"];
+            referencedRelation: "product_options";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      product_options: {
+        Row: {
+          id: string;
+          product_id: string;
+          weight: string;
+          price: number;
+          compare_at: number | null;
+          stock: number;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          weight: string;
+          price: number;
+          compare_at?: number | null;
+          stock?: number;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          weight?: string;
+          price?: number;
+          compare_at?: number | null;
+          stock?: number;
+          position?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "product_options_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
           }
         ];
       };
@@ -203,6 +252,8 @@ export interface Database {
           product_id: string;
           qty: number;
           unit_price: number;
+          weight: string;
+          option_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -211,6 +262,8 @@ export interface Database {
           product_id: string;
           qty: number;
           unit_price: number;
+          weight?: string;
+          option_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -219,6 +272,8 @@ export interface Database {
           product_id?: string;
           qty?: number;
           unit_price?: number;
+          weight?: string;
+          option_id?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -243,6 +298,7 @@ export interface Database {
           email: string | null;
           phone: string | null;
           avatar_url: string | null;
+          currency: string | null;
           created_at: string;
         };
         Insert: {
@@ -251,6 +307,7 @@ export interface Database {
           email?: string | null;
           phone?: string | null;
           avatar_url?: string | null;
+          currency?: string | null;
           created_at?: string;
         };
         Update: {
@@ -259,6 +316,7 @@ export interface Database {
           email?: string | null;
           phone?: string | null;
           avatar_url?: string | null;
+          currency?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -269,6 +327,60 @@ export interface Database {
             referencedColumns: ["id"];
           }
         ];
+      };
+      currencies: {
+        Row: {
+          code: string;
+          name: string;
+          symbol: string;
+          rate_to_base: number;
+          auto_update: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          code: string;
+          name: string;
+          symbol: string;
+          rate_to_base?: number;
+          auto_update?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          code?: string;
+          name?: string;
+          symbol?: string;
+          rate_to_base?: number;
+          auto_update?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      shipping_settings: {
+        Row: {
+          id: string;
+          base_fee: number;
+          per_kg_fee: number;
+          free_delivery_threshold: number;
+          enabled: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          base_fee?: number;
+          per_kg_fee?: number;
+          free_delivery_threshold?: number;
+          enabled?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          base_fee?: number;
+          per_kg_fee?: number;
+          free_delivery_threshold?: number;
+          enabled?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       blog_posts: {
         Row: {

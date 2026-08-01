@@ -11,6 +11,11 @@ import { cn } from "@/lib/utils";
 import NumberFlow from "@number-flow/react";
 import { useCart, useCartLines } from "@/lib/cart";
 import Link from "next/link";
+import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
+import { useExchangeRates } from '@/lib/useExchangeRates';
+import formatCurrency from '@/lib/currency';
+import { calculateShippingFee, parseWeightKg } from '@/lib/weight';
+import { useShippingSettings } from '@/lib/useShippingSettings';
 
 /* ─── tiny helpers ─────────────────────────────────────────── */
 
@@ -48,14 +53,26 @@ function SectionHeader({ step, icon, title }: { step: number; icon?: React.React
 /* ─── main export ───────────────────────────────────────────── */
 
 export function InteractiveCheckout() {
-    const { lines: rawLines, setQty, remove, subtotal, hydrated } = useCart();
+    const { lines: rawLines, setLineQty, removeLine, subtotal, hydrated } = useCart();
     const lines = useCartLines();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const deliveryFee = subtotal >= 40 || subtotal === 0 ? 0 : 4.99;
+    const { settings } = useShippingSettings();
+    const totalKg = lines.reduce((sum, line) => {
+        const parsedKg = parseWeightKg(line.product.weight);
+        return sum + (parsedKg ?? 0) * line.qty;
+    }, 0);
+    const deliveryFee = !settings.enabled || subtotal >= settings.free_delivery_threshold || subtotal === 0
+      ? 0
+      : calculateShippingFee(totalKg, settings);
     const totalPrice = subtotal + deliveryFee;
     const totalItems = lines.reduce((s, i) => s + i.qty, 0);
+    const { currency: preferred } = usePreferredCurrency('GBP');
+    const { convert, base } = useExchangeRates();
+    const convertedSubtotal = preferred && preferred !== base ? convert(subtotal, preferred) : null;
+    const convertedDelivery = preferred && preferred !== base ? convert(deliveryFee, preferred) : null;
+    const convertedTotal = preferred && preferred !== base ? convert(totalPrice, preferred) : null;
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -80,7 +97,7 @@ export function InteractiveCheckout() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    lines: rawLines.map((l) => ({ productId: l.productId, qty: l.qty })),
+                    lines: rawLines.map((l) => ({ productId: l.productId, optionId: l.optionId, qty: l.qty })),
                     address,
                 }),
             });
@@ -198,7 +215,7 @@ export function InteractiveCheckout() {
                             <AnimatePresence initial={false} mode="popLayout">
                                 {lines.map((item) => (
                                     <motion.div
-                                        key={item.product.id}
+                                        key={item.key}
                                         layout
                                         initial={{ opacity: 0, scale: 0.96 }}
                                         animate={{ opacity: 1, scale: 1 }}
@@ -221,19 +238,20 @@ export function InteractiveCheckout() {
                                                     type="button"
                                                     whileHover={{ scale: 1.1 }}
                                                     whileTap={{ scale: 0.95 }}
-                                                    onClick={() => remove(item.product.id)}
+                                                    onClick={() => removeLine(item.key)}
                                                     className="p-1 shrink-0 rounded-full text-ink-muted hover:text-dark hover:bg-line transition-colors"
                                                 >
                                                     <X className="w-3.5 h-3.5" />
                                                 </motion.button>
                                             </div>
+                                            <p className="text-xs text-ink-muted">{item.product.weight}</p>
                                             <div className="flex items-center justify-between mt-2">
                                                 <div className="flex items-center gap-1 bg-white rounded-full border border-line px-1 py-0.5">
                                                     <motion.button
                                                         type="button"
                                                         whileHover={{ scale: 1.1 }}
                                                         whileTap={{ scale: 0.95 }}
-                                                        onClick={() => setQty(item.product.id, item.qty - 1)}
+                                                        onClick={() => setLineQty(item.key, item.qty - 1)}
                                                         className="w-6 h-6 rounded-full flex items-center justify-center text-dark hover:bg-surface transition-colors"
                                                     >
                                                         <Minus className="w-3 h-3" />
@@ -245,14 +263,18 @@ export function InteractiveCheckout() {
                                                         type="button"
                                                         whileHover={{ scale: 1.1 }}
                                                         whileTap={{ scale: 0.95 }}
-                                                        onClick={() => setQty(item.product.id, item.qty + 1)}
+                                                        onClick={() => setLineQty(item.key, item.qty + 1)}
                                                         className="w-6 h-6 rounded-full flex items-center justify-center text-dark hover:bg-surface transition-colors"
                                                     >
                                                         <Plus className="w-3 h-3" />
                                                     </motion.button>
                                                 </div>
                                                 <span className="text-sm font-semibold text-dark">
-                                                    £{(item.product.price * item.qty).toFixed(2)}
+                                                    {formatCurrency(item.product.price * item.qty, base)}{(() => {
+                                                        if (!preferred || preferred === base) return '';
+                                                        const conv = convert(item.product.price * item.qty, preferred);
+                                                        return conv !== null ? ` · ${formatCurrency(conv, preferred)}` : '';
+                                                    })()}
                                                 </span>
                                             </div>
                                         </div>
@@ -266,16 +288,16 @@ export function InteractiveCheckout() {
                             <div className="space-y-3 mb-5">
                                 <div className="flex justify-between text-sm text-ink-soft">
                                     <span>Subtotal</span>
-                                    <span>£{subtotal.toFixed(2)}</span>
+                                    <span>{formatCurrency(subtotal, base)}{convertedSubtotal ? ` · ${formatCurrency(convertedSubtotal, preferred)}` : ''}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-ink-soft">
                                     <span>Delivery</span>
-                                    <span>{deliveryFee === 0 ? "Free" : `£${deliveryFee.toFixed(2)}`}</span>
+                                    <span>{deliveryFee === 0 ? "Free" : `${formatCurrency(deliveryFee, base)}${convertedDelivery ? ` · ${formatCurrency(convertedDelivery, preferred)}` : ''}`}</span>
                                 </div>
                                 <div className="flex justify-between pt-3 border-t border-line">
                                     <span className="font-semibold text-dark">Total</span>
                                     <span className="text-xl font-bold text-dark flex items-center">
-                                        £<NumberFlow value={totalPrice} />
+                                        {formatCurrency(totalPrice, base)}{convertedTotal ? ` · ${formatCurrency(convertedTotal, preferred)}` : ''}
                                     </span>
                                 </div>
                             </div>

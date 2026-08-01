@@ -3,14 +3,24 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Plus, Trash2 } from "lucide-react";
 
 type Category = { id: string; name: string };
+
+type OptionRow = {
+  id?: string;
+  weight: string;
+  price: string;
+  compare_at: string;
+  stock: string;
+};
 
 type Props = {
   mode: "create" | "edit";
   product?: Record<string, unknown>;
 };
+
+const emptyOption = (): OptionRow => ({ weight: "1 kg", price: "", compare_at: "", stock: "0" });
 
 export default function ProductForm({ mode, product }: Props) {
   const router = useRouter();
@@ -19,6 +29,10 @@ export default function ProductForm({ mode, product }: Props) {
   const [imageUrl, setImageUrl] = useState((product?.image_url as string) ?? "");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [optionRows, setOptionRows] = useState<OptionRow[]>(() =>
+    mode === "create" ? [emptyOption()] : []
+  );
+  const [optionsLoading, setOptionsLoading] = useState(mode === "edit");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -30,6 +44,44 @@ export default function ProductForm({ mode, product }: Props) {
         if (data) setCategories(data);
       });
   }, []);
+
+  useEffect(() => {
+    if (mode === "create" || !product) return;
+    const supabase = createClient();
+    supabase
+      .from("product_options")
+      .select("id, weight, price, compare_at, stock")
+      .eq("product_id", product?.id as string)
+      .order("position")
+      .then(({ data }) => {
+        const rows: OptionRow[] = (data ?? []).map((o) => ({
+          id: o.id,
+          weight: o.weight,
+          price: String(o.price),
+          compare_at: o.compare_at ? String(o.compare_at) : "",
+          stock: String(o.stock),
+        }));
+        if (rows.length === 0) {
+          rows.push({
+            id: undefined,
+            weight: (product?.weight as string) || "1 kg",
+            price: product?.price != null ? String(product.price) : "",
+            compare_at: product?.compare_at ? String(product.compare_at) : "",
+            stock: String((product?.stock as number) ?? 0),
+          });
+        }
+        setOptionRows(rows);
+        setOptionsLoading(false);
+      });
+  }, [mode, product]);
+
+  const updateRow = (index: number, field: keyof OptionRow, value: string) =>
+    setOptionRows((prev) => prev.map((r, idx) => (idx === index ? { ...r, [field]: value } : r)));
+
+  const addRow = () => setOptionRows((prev) => [...prev, emptyOption()]);
+
+  const removeRow = (index: number) =>
+    setOptionRows((prev) => prev.filter((_, idx) => idx !== index));
 
   async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -64,19 +116,34 @@ export default function ProductForm({ mode, product }: Props) {
     setLoading(true);
     setError("");
 
+    const rows = optionRows.map((r, i) => ({
+      weight: r.weight.trim(),
+      price: parseFloat(r.price),
+      compare_at: r.compare_at.trim() ? parseFloat(r.compare_at) : null,
+      stock: parseInt(r.stock, 10) || 0,
+      position: i,
+    }));
+
+    if (rows.length === 0 || rows.some((r) => !r.weight || Number.isNaN(r.price))) {
+      setError("Each option needs a weight and a price.");
+      setLoading(false);
+      return;
+    }
+
     const form = new FormData(e.currentTarget);
+    const first = rows[0];
     const data = {
       name: form.get("name") as string,
       category_id: form.get("category_id") as string,
-      weight: form.get("weight") as string,
-      price: parseFloat(form.get("price") as string),
-      compare_at: form.get("compare_at") ? parseFloat(form.get("compare_at") as string) : null,
+      weight: first.weight,
+      price: first.price,
+      compare_at: first.compare_at,
       emoji: (form.get("emoji") as string) || "📦",
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       badge: (form.get("badge") as string) || null,
       description: (form.get("description") as string) || "",
       origin: (form.get("origin") as string) || null,
-      stock: parseInt(form.get("stock") as string) || 0,
+      stock: first.stock,
       image_url: imageUrl || "",
       is_active: form.get("is_active") === "on",
       is_featured: form.get("is_featured") === "on",
@@ -85,21 +152,46 @@ export default function ProductForm({ mode, product }: Props) {
     };
 
     const supabase = createClient();
-    let result;
+    let productId = (product?.id as string) ?? "";
 
     if (mode === "edit" && product) {
-      result = await supabase
-        .from("products")
-        .update(data)
-        .eq("id", product.id as string);
+      const { error } = await supabase.from("products").update(data).eq("id", product.id as string);
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
     } else {
-      result = await supabase.from("products").insert(data);
+      const { data: inserted, error } = await supabase
+        .from("products")
+        .insert(data)
+        .select("id")
+        .single();
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+      productId = inserted.id;
     }
 
-    if (result.error) {
-      setError(result.error.message);
-      setLoading(false);
-      return;
+    if (productId) {
+      await supabase.from("product_options").delete().eq("product_id", productId);
+      const { error: insErr } = await supabase.from("product_options").insert(
+        rows.map((r) => ({
+          product_id: productId,
+          weight: r.weight,
+          price: r.price,
+          compare_at: r.compare_at,
+          stock: r.stock,
+          position: r.position,
+        }))
+      );
+      if (insErr) {
+        setError(insErr.message);
+        setLoading(false);
+        return;
+      }
     }
 
     router.push("/admin/products");
@@ -166,21 +258,99 @@ export default function ProductForm({ mode, product }: Props) {
           <Field label="Slug (URL-friendly)" name="slug" defaultValue={product?.slug as string ?? ""} placeholder="auto-generated if empty" />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <SelectField
-            label="Category"
-            name="category_id"
-            defaultValue={product?.category_id as string}
-            required
-            options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          />
-          <Field label="Weight (e.g. 5 kg)" name="weight" defaultValue={(product?.weight as string) ?? "1 kg"} />
-        </div>
+        <SelectField
+          label="Category"
+          name="category_id"
+          defaultValue={product?.category_id as string}
+          required
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+        />
 
-        <div className="grid grid-cols-3 gap-4">
-          <Field label="Price (£)" name="price" type="number" step="0.01" defaultValue={product ? String(product.price) : undefined} required />
-          <Field label="Compare at (£)" name="compare_at" type="number" step="0.01" defaultValue={product?.compare_at ? String(product.compare_at) : ""} />
-          <Field label="Stock" name="stock" type="number" defaultValue={product ? String(product.stock) : "0"} />
+        {/* Options */}
+        <div className="border border-[#e6e1d6] rounded-xl p-4 space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <span className="block text-xs font-semibold text-dark">Options (sizes / weights)</span>
+              <span className="block text-[11px] text-ink-muted mt-0.5">
+                The first option is the product&apos;s default. Customers pick from these on the shop.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={addRow}
+              className="flex items-center gap-1 h-8 px-3 rounded-full border border-[#e6e1d6] text-xs font-semibold text-dark hover:bg-[#f4f1ea] transition-colors shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add option
+            </button>
+          </div>
+
+          {optionsLoading ? (
+            <p className="text-sm text-ink-muted py-2">Loading options…</p>
+          ) : (
+            optionRows.map((row, i) => (
+              <div key={row.id ?? i} className="border border-[#e6e1d6] rounded-xl p-4 space-y-3 bg-white">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-dark">Option {i + 1}</span>
+                  {optionRows.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      aria-label={`Remove option ${i + 1}`}
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-ink-muted hover:text-red transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight</span>
+                    <input
+                      type="text"
+                      value={row.weight}
+                      onChange={(e) => updateRow(i, "weight", e.target.value)}
+                      placeholder="e.g. 1 kg"
+                      className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Price (£)</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={row.price}
+                      onChange={(e) => updateRow(i, "price", e.target.value)}
+                      className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Compare at (£)</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={row.compare_at}
+                      onChange={(e) => updateRow(i, "compare_at", e.target.value)}
+                      placeholder="Optional"
+                      className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Stock</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={row.stock}
+                      onChange={(e) => updateRow(i, "stock", e.target.value)}
+                      className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                    />
+                  </label>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="grid grid-cols-3 gap-4">

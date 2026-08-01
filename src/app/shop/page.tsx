@@ -25,6 +25,7 @@ type DisplayProduct = {
   weight: string;
   image_url: string;
   featured_position: number;
+  options?: { id: string; weight: string; price: number; stock: number }[];
 };
 
 type DisplayCategory = {
@@ -51,8 +52,8 @@ function ShopInner() {
     async function load() {
       const catRaw = await supabase.from("categories").select("*").order("name");
       const categories = catRaw.data as { id: string; name: string; slug: string; emoji: string; bg_color: string; description: string }[] | null;
-      const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug)").eq("is_active", true).order("name");
-      const products = prodRaw.data as { id: string; name: string; category_id: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string } }[] | null;
+      const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug), product_options(id, weight, price, stock)").eq("is_active", true).order("name");
+      const products = prodRaw.data as { id: string; name: string; category_id: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string }; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
 
       if (!categories || !products) return;
 
@@ -85,6 +86,9 @@ function ShopInner() {
             weight: p.weight,
             image_url: p.image_url ?? "",
             featured_position: p.featured_position ?? 0,
+            options: (p.product_options ?? [])
+              .map((o) => ({ id: o.id, weight: o.weight, price: Number(o.price), stock: o.stock }))
+              .sort((a, b) => a.price - b.price),
           };
         })
       );

@@ -12,24 +12,35 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createServerSupabase();
 
+  type OptionRow = { id: string; weight: string; price: number; compare_at: number | null; stock: number };
+
   const productRaw = await supabase
     .from("products")
-    .select("*, categories(name, slug)")
+    .select("*, categories(name, slug), product_options(id, weight, price, compare_at, stock)")
     .eq("id", id)
     .single();
-  const product = productRaw.data as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null } | null;
+  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
 
   const cat = product.categories;
+  const options = (product.product_options ?? [])
+    .map((o) => ({
+      id: o.id,
+      weight: o.weight,
+      price: Number(o.price),
+      compare_at: o.compare_at ? Number(o.compare_at) : null,
+      stock: o.stock,
+    }))
+    .sort((a, b) => a.price - b.price);
 
   const relatedRaw = await supabase
     .from("products")
-    .select("*, categories(name)")
+    .select("*, categories(name), product_options(id, weight, price, stock)")
     .eq("category_id", product.category_id)
     .neq("id", product.id)
     .limit(4);
-  const related = (relatedRaw.data ?? []) as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null }[];
+  const related = (relatedRaw.data ?? []) as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null; product_options: OptionRow[] | null }[];
 
   const displayProduct = {
     id: product.id,
@@ -46,6 +57,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     origin: product.origin,
     stock: product.stock,
     image_url: product.image_url ?? "",
+    options,
   };
 
   const relatedProducts = (related ?? []).map((p) => {
@@ -61,6 +73,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       badge: p.badge,
       weight: p.weight,
       image_url: p.image_url ?? "",
+      options: (p.product_options ?? [])
+        .map((o) => ({
+          id: o.id,
+          weight: o.weight,
+          price: Number(o.price),
+          compare_at: o.compare_at ? Number(o.compare_at) : null,
+          stock: o.stock,
+        }))
+        .sort((a, b) => a.price - b.price),
     };
   });
 
@@ -103,30 +124,16 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </p>
             <h1 className="text-3xl lg:text-4xl font-semibold text-dark tracking-tight">{displayProduct.name}</h1>
 
-            <div className="mt-4 flex items-baseline gap-3">
-              <span className="text-3xl font-semibold text-dark">£{displayProduct.price.toFixed(2)}</span>
-              {displayProduct.compare_at && (
-                <span className="text-lg text-ink-muted line-through">£{displayProduct.compare_at.toFixed(2)}</span>
-              )}
-              <span className="text-sm text-ink-muted ml-auto">{displayProduct.weight}</span>
-            </div>
-
             <p className="mt-6 text-ink-soft leading-relaxed">{displayProduct.description}</p>
 
-            <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
-              {displayProduct.origin && (
+            {displayProduct.origin && (
+              <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <dt className="text-ink-muted text-xs uppercase tracking-wider">Origin</dt>
                   <dd className="text-dark font-medium mt-1">{displayProduct.origin}</dd>
                 </div>
-              )}
-              <div>
-                <dt className="text-ink-muted text-xs uppercase tracking-wider">Availability</dt>
-                <dd className="text-green font-medium mt-1">
-                  {displayProduct.stock > 0 ? `In stock · ${displayProduct.stock} left` : "Out of stock"}
-                </dd>
-              </div>
-            </dl>
+              </dl>
+            )}
 
             <ProductBuyBox product={displayProduct} />
 

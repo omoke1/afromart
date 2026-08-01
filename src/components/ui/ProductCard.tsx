@@ -1,9 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Minus, Plus, Heart } from "lucide-react";
-import { useCart } from "@/lib/cart";
+import { useCart, lineKey } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
+import AnimatedDropdown from "@/components/ui/animated-dropdown";
+import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
+import { useExchangeRates } from '@/lib/useExchangeRates';
+import formatCurrency from '@/lib/currency';
+
+type CardOption = {
+  id: string;
+  weight: string;
+  price: number;
+  stock: number;
+};
 
 type ProductCardProduct = {
   id: string;
@@ -16,14 +28,32 @@ type ProductCardProduct = {
   badge: string | null;
   weight: string;
   image_url?: string;
+  stock?: number;
+  options?: CardOption[];
 };
 
+function firstLineKey(lines: { productId: string; optionId: string | null }[]): string {
+  const first = lines[0];
+  return first ? lineKey(first.productId, first.optionId) : "";
+}
+
 export default function ProductCard({ product }: { product: ProductCardProduct }) {
-  const { lines, add, setQty } = useCart();
+  const { lines, setLineQty, openProductDrawer } = useCart();
   const { has, toggle } = useWishlist();
-  const line = lines.find((l) => l.productId === product.id);
-  const qty = line?.qty ?? 0;
+  const productLines = lines.filter((l) => l.productId === product.id);
+  const qty = productLines.reduce((sum, l) => sum + l.qty, 0);
   const wished = has(product.id);
+
+  const options = product.options ?? [];
+  const displayOptions =
+    options.length > 0
+      ? options
+      : [{ id: "", weight: product.weight, price: product.price, stock: product.stock ?? 1 }];
+  const hasVariants = options.length > 1;
+  const minPrice = Math.min(...displayOptions.map((o) => o.price));
+  const { currency: preferred } = usePreferredCurrency('GBP');
+  const { convert, base } = useExchangeRates();
+  const convertedMin = preferred && preferred !== base ? convert(minPrice, preferred) : null;
 
   return (
     <div className="group flex flex-col">
@@ -42,7 +72,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
           />
         </button>
         <div
-          className="aspect-square rounded-2xl flex items-center justify-center text-7xl overflow-hidden"
+          className="aspect-square rounded-2xl flex items-center justify-center text-7xl overflow-hidden relative"
           style={{ backgroundColor: product.bg_color }}
         >
           {product.image_url ? (
@@ -57,7 +87,27 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
               {product.emoji}
             </span>
           )}
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (openProductDrawer) {
+                openProductDrawer({
+                id: product.id,
+                name: product.name,
+                img: product.image_url ?? null,
+                options: displayOptions.map((o) => ({ id: o.id, label: o.weight, price: o.price, oldPrice: product.compare_at ?? undefined })),
+                });
+              }
+            }}
+            aria-label="Open product options"
+            className="absolute bottom-3 right-3 z-10 w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center shadow-sm"
+          >
+            <span className="text-2xl leading-none">+</span>
+          </button>
         </div>
+        
       </Link>
 
       <div className="pt-4 px-1 flex flex-col">
@@ -72,26 +122,28 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
         </Link>
 
         <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-base font-semibold text-dark">£{product.price.toFixed(2)}</span>
+          <span className="text-base font-semibold text-dark">
+            {hasVariants ? (
+              <>from {formatCurrency(minPrice, base)}{convertedMin ? ` · ${formatCurrency(convertedMin, preferred)}` : ''}</>
+            ) : (
+              <>{formatCurrency(minPrice, base)}{convertedMin ? ` · ${formatCurrency(convertedMin, preferred)}` : ''}</>
+            )}
+          </span>
           {product.compare_at && (
             <span className="text-sm text-ink-muted line-through">£{product.compare_at.toFixed(2)}</span>
           )}
-          <span className="text-xs text-ink-muted ml-auto">{product.weight}</span>
+          <span className="text-xs text-ink-muted ml-auto">
+            {hasVariants ? `${options.length} sizes` : product.weight}
+          </span>
         </div>
 
         <div className="mt-4">
           {qty === 0 ? (
-            <button
-              onClick={() => add(product.id, 1)}
-              aria-label={`Add ${product.name} to cart`}
-              className="w-full border border-line text-dark text-sm font-medium rounded-full py-2.5 hover:bg-dark hover:text-white hover:border-dark transition-colors"
-            >
-              Add to cart
-            </button>
+            <QuickAdd product={product} displayOptions={displayOptions} />
           ) : (
             <div className="w-full border border-line rounded-full py-1 px-1.5 flex items-center justify-between">
               <button
-                onClick={() => setQty(product.id, qty - 1)}
+                onClick={() => setLineQty(firstLineKey(productLines), qty - 1)}
                 aria-label="Decrease quantity"
                 className="w-8 h-8 rounded-full bg-surface text-dark flex items-center justify-center hover:bg-brand hover:text-white transition-colors"
               >
@@ -99,7 +151,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
               </button>
               <span className="text-sm font-semibold text-dark">{qty}</span>
               <button
-                onClick={() => setQty(product.id, qty + 1)}
+                onClick={() => setLineQty(firstLineKey(productLines), qty + 1)}
                 aria-label="Increase quantity"
                 className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center hover:bg-brand-hover transition-colors"
               >
@@ -110,6 +162,46 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
         </div>
       </div>
     </div>
+  );
+}
+
+function QuickAdd({
+  product,
+  displayOptions,
+}: {
+  product: ProductCardProduct;
+  displayOptions: CardOption[];
+}) {
+  const { add, openDrawer } = useCart();
+  const { currency: preferred } = usePreferredCurrency('GBP');
+  const { convert, base } = useExchangeRates();
+
+  return (
+        <AnimatedDropdown
+      items={displayOptions.map((o) => ({
+        value: o.id,
+        label: o.weight,
+        price: o.price,
+        oldPrice: product.compare_at ?? undefined,
+        hint: o.stock === 0 ? "Out of stock" : (() => {
+          if (!preferred || preferred === base) return `${formatCurrency(o.price, base)}`;
+          const conv = convert(o.price, preferred);
+          return conv !== null ? `${formatCurrency(conv, preferred)}` : `${formatCurrency(o.price, base)}`;
+        })(),
+        imgSrc: product.image_url,
+        disabled: o.stock === 0,
+      }))}
+      text={`Options: ${displayOptions.length}`}
+      className=""
+      align="left"
+      buttonClassName="inline-flex items-center gap-2 rounded px-2 py-1 text-sm bg-white text-dark border border-line"
+      onSelect={(value) => add(product.id, 1, value || null)}
+      onAction={(value) => {
+        add(product.id, 1, value || null);
+        // open the cart drawer so the user sees the line added
+        openDrawer();
+      }}
+    />
   );
 }
 

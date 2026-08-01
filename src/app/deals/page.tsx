@@ -11,10 +11,10 @@ export default async function DealsPage() {
 
   const productsRaw = await supabase
     .from("products")
-    .select("*, categories(name)")
+    .select("*, categories(name), product_options(id, weight, price, stock)")
     .not("compare_at", "is", null)
     .gt("compare_at", 0);
-  const products = (productsRaw.data ?? []) as { id: string; name: string; price: number; compare_at: number; emoji: string; bg_color: string; badge: string | null; weight: string; categories: { name: string } | null }[];
+  const products = (productsRaw.data ?? []) as unknown as { id: string; name: string; price: number; compare_at: number; emoji: string; bg_color: string; badge: string | null; weight: string; categories: { name: string } | null; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[];
 
   const onSale = (products ?? []).map((p) => {
     const cat = p.categories as { name: string } | null;
@@ -28,6 +28,9 @@ export default async function DealsPage() {
       bg_color: p.bg_color,
       badge: p.badge,
       weight: p.weight,
+      options: (p.product_options ?? [])
+        .map((o) => ({ id: o.id, weight: o.weight, price: Number(o.price), stock: o.stock }))
+        .sort((a, b) => a.price - b.price),
     };
   });
 

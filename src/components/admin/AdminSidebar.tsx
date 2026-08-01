@@ -10,6 +10,7 @@ import {
   Users,
   FileText,
   UtensilsCrossed,
+  Truck,
   LogOut,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Categories", href: "/admin/categories", icon: Tag },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Shipping", href: "/admin/shipping", icon: Truck },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Blog", href: "/admin/blog", icon: FileText },
   { label: "Recipes", href: "/admin/recipes", icon: UtensilsCrossed },

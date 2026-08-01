@@ -4,13 +4,13 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 
-export default function ReorderButton({ items }: { items: { product_id: string; qty: number }[] }) {
+export default function ReorderButton({ items }: { items: { product_id: string; qty: number; option_id?: string | null }[] }) {
   const { add } = useCart();
   const router = useRouter();
 
   function handleReorder() {
     for (const item of items) {
-      add(item.product_id, item.qty);
+      add(item.product_id, item.qty, item.option_id ?? null);
     }
     router.push("/cart");
   }
