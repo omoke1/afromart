@@ -12,6 +12,7 @@ async function getStats() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
   const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const startOf14 = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 13).toISOString();
 
   const [
     productCountRes,
@@ -24,6 +25,7 @@ async function getStats() {
     todayRes,
     weekRes,
     monthRes,
+    trendRes,
   ] = await Promise.all([
     admin.from("products").select("*", { count: "exact", head: true }),
     admin.from("orders").select("*", { count: "exact", head: true }),
@@ -35,6 +37,7 @@ async function getStats() {
     admin.from("orders").select("total").gte("created_at", startOfDay).neq("status", "Cancelled"),
     admin.from("orders").select("total").gte("created_at", startOfWeek).neq("status", "Cancelled"),
     admin.from("orders").select("total").gte("created_at", startOfMonth).neq("status", "Cancelled"),
+    admin.from("orders").select("total, created_at").gte("created_at", startOf14).neq("status", "Cancelled"),
   ]);
 
   const revenueData = (allRevenueRes.data ?? []) as { total: number }[];
@@ -44,6 +47,22 @@ async function getStats() {
     const rows = data ?? [];
     return { count: rows.length, revenue: rows.reduce((s, o) => s + Number(o.total), 0) };
   }
+
+  // Revenue per day for the last 14 days (local calendar days).
+  const trendDays: { day: string; revenue: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    trendDays.push({ day: `${d.getMonth() + 1}/${d.getDate()}`, revenue: 0 });
+  }
+  const dayIndex = new Map(trendDays.map((t, idx) => [t.day, idx]));
+  for (const o of (trendRes.data ?? []) as { total: number; created_at: string }[]) {
+    const d = new Date(o.created_at);
+    const key = `${d.getMonth() + 1}/${d.getDate()}`;
+    const idx = dayIndex.get(key);
+    if (idx !== undefined) trendDays[idx].revenue += Number(o.total);
+  }
+  const trend = trendDays;
+  const trendPeak = Math.max(...trend.map((t) => t.revenue), 1);
 
   return {
     productCount: productCountRes.count ?? 0,
@@ -56,6 +75,8 @@ async function getStats() {
     today: periodStats(todayRes.data),
     thisWeek: periodStats(weekRes.data),
     thisMonth: periodStats(monthRes.data),
+    trend,
+    trendPeak,
   };
 }
 
@@ -88,6 +109,39 @@ export default async function AdminDashboard() {
         <PeriodCard label="This week" count={stats.thisWeek.count} revenue={stats.thisWeek.revenue} />
         <PeriodCard label="Last 30 days" count={stats.thisMonth.count} revenue={stats.thisMonth.revenue} />
       </div>
+
+      <section className="mb-6 bg-white border border-[#e6e1d6] rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-dark">Revenue — last 14 days</h3>
+          <span className="text-xs text-ink-muted">
+            £{stats.trend.reduce((s, t) => s + t.revenue, 0).toFixed(2)} total
+          </span>
+        </div>
+        <div className="flex items-end gap-1.5 h-36">
+          {stats.trend.map((t, i) => {
+            const height = Math.max(4, Math.round((t.revenue / stats.trendPeak) * 100));
+            return (
+              <div
+                key={i}
+                className="flex-1 flex flex-col items-center justify-end gap-1.5 group"
+                title={`${t.day} — £${t.revenue.toFixed(2)}`}
+              >
+                <div
+                  className={`w-full rounded-t-md transition-colors ${
+                    t.revenue > 0 ? "bg-brand/80 group-hover:bg-brand" : "bg-[#f0ede4]"
+                  }`}
+                  style={{ height: `${height}%` }}
+                />
+                {i % 2 === 0 || i === stats.trend.length - 1 ? (
+                  <span className="text-[10px] text-ink-muted">{t.day}</span>
+                ) : (
+                  <span className="text-[10px] text-transparent select-none">·</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="grid grid-cols-2 gap-6">
         <section className="bg-white border border-[#e6e1d6] rounded-xl p-5">

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Package } from "lucide-react";
 import AccountSidebar from "@/components/layout/AccountSidebar";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function statusColor(status: string) {
   switch (status) {
@@ -19,15 +20,16 @@ function statusColor(status: string) {
 }
 
 export default async function AccountPage() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
+  if (!user) return null;
 
-  const { data: profileRaw } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
+  const admin = createAdminClient();
+  const { data: profileRaw } = await admin.from("profiles").select("*").eq("id", user.id).single();
 
-  const { data: ordersRaw } = await supabase
+  const { data: ordersRaw } = await admin
     .from("orders")
     .select("*")
-    .eq("user_id", user!.id)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(5);
 
@@ -44,9 +46,9 @@ export default async function AccountPage() {
     <div className="max-w-[1200px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 lg:pt-12 pb-20 flex-1">
       <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">My account</p>
       <h1 className="text-3xl lg:text-4xl font-semibold text-dark tracking-tight">
-        Hello, {profile?.name ?? user!.email}
+        Hello, {profile?.name ?? user.email}
       </h1>
-      <p className="mt-2 text-ink-soft text-sm">{user!.email}</p>
+      <p className="mt-2 text-ink-soft text-sm">{user.email}</p>
 
       <div className="mt-10 grid lg:grid-cols-[240px_1fr] gap-10">
         <AccountSidebar />

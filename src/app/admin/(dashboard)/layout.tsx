@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
-import { createServerSupabase } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import Link from "next/link";
+import { getServerUser } from "@/lib/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import { ToastProvider } from "@/components/ui/ToastProvider";
 
 // This layout lives in the (dashboard) route group, so it wraps every admin
 // page EXCEPT /admin/login — the login page must never run this auth check,
@@ -11,21 +12,13 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   if (!user) {
     redirect("/admin/login");
   }
 
-  const admin = createAdminClient();
-  const { data: role } = await admin
-    .from("admin_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!role) {
+  if (!user.isAdmin) {
     // Signed in but not an admin — send them to the shop, not back to the
     // admin login page (they're already authenticated; that would loop).
     redirect("/");
@@ -36,16 +29,22 @@ export default async function AdminLayout({
       <AdminSidebar />
       <div className="flex-1 flex flex-col min-h-screen">
         <header className="h-16 border-b border-[#e6e1d6] bg-white flex items-center justify-between px-6 shrink-0">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 pl-12 lg:pl-0">
             <h1 className="text-sm font-semibold text-dark">AfroMart Admin</h1>
           </div>
-          <div className="flex items-center gap-3 text-xs text-ink-soft">
-            <span>{user.email}</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-green" />
+          <div className="flex items-center gap-4 text-xs text-ink-soft">
+            <Link
+              href="/"
+              target="_blank"
+              className="font-medium text-brand hover:underline"
+            >
+              View shop ↗
+            </Link>
+            <span className="text-dark font-medium">{user.name ?? user.email}</span>
           </div>
         </header>
         <main className="flex-1 p-6">
-          {children}
+          <ToastProvider>{children}</ToastProvider>
         </main>
       </div>
     </div>

@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Upload, X, Plus, Trash2 } from "lucide-react";
-
+import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
+import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 type Category = { id: string; name: string };
 
 type OptionRow = {
@@ -32,29 +32,30 @@ export default function ProductForm({ mode, product }: Props) {
   const [optionRows, setOptionRows] = useState<OptionRow[]>(() =>
     mode === "create" ? [emptyOption()] : []
   );
+  const [relatedIds, setRelatedIds] = useState<string[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(mode === "edit");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    createClient()
-      .from("categories")
-      .select("id, name")
-      .order("name")
-      .then(({ data }) => {
-        if (data) setCategories(data);
+    fetch("/api/admin/categories")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.categories) setCategories(data.categories);
       });
   }, []);
 
   useEffect(() => {
     if (mode === "create" || !product) return;
-    const supabase = createClient();
-    supabase
-      .from("product_options")
-      .select("id, weight, price, compare_at, stock")
-      .eq("product_id", product?.id as string)
-      .order("position")
-      .then(({ data }) => {
-        const rows: OptionRow[] = (data ?? []).map((o) => ({
+    fetch(`/api/admin/products/${product?.id as string}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const rows: OptionRow[] = ((data.options ?? []) as {
+          id: string;
+          weight: string;
+          price: number;
+          compare_at: number | null;
+          stock: number;
+        }[]).map((o) => ({
           id: o.id,
           weight: o.weight,
           price: String(o.price),
@@ -71,6 +72,7 @@ export default function ProductForm({ mode, product }: Props) {
           });
         }
         setOptionRows(rows);
+        if (Array.isArray(data.related_ids)) setRelatedIds(data.related_ids);
         setOptionsLoading(false);
       });
   }, [mode, product]);
@@ -89,25 +91,19 @@ export default function ProductForm({ mode, product }: Props) {
     setUploading(true);
     setError("");
 
-    const supabase = createClient();
-    const ext = file.name.split(".").pop() ?? "png";
-    const path = `products/${product?.id ?? Date.now()}.${ext}`;
+    const body = new FormData();
+    body.append("file", file);
 
-    const { error: uploadErr } = await supabase.storage
-      .from("product-images")
-      .upload(path, file, { upsert: true });
+    const res = await fetch("/api/admin/upload", { method: "POST", body });
+    const data = await res.json();
 
-    if (uploadErr) {
-      setError(uploadErr.message);
+    if (!res.ok || !data.url) {
+      setError(data.error ?? "Upload failed.");
       setUploading(false);
       return;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("product-images")
-      .getPublicUrl(path);
-
-    setImageUrl(urlData.publicUrl + "?t=" + Date.now());
+    setImageUrl(data.url);
     setUploading(false);
   }
 
@@ -142,6 +138,7 @@ export default function ProductForm({ mode, product }: Props) {
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       badge: (form.get("badge") as string) || null,
       description: (form.get("description") as string) || "",
+      description_long: (form.get("description_long") as string) || "",
       origin: (form.get("origin") as string) || null,
       stock: first.stock,
       image_url: imageUrl || "",
@@ -151,47 +148,30 @@ export default function ProductForm({ mode, product }: Props) {
       slug: (form.get("slug") as string) || null,
     };
 
-    const supabase = createClient();
-    let productId = (product?.id as string) ?? "";
+    const payload = {
+      ...data,
+      options: rows,
+      related_ids: relatedIds,
+    };
 
-    if (mode === "edit" && product) {
-      const { error } = await supabase.from("products").update(data).eq("id", product.id as string);
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
-    } else {
-      const { data: inserted, error } = await supabase
-        .from("products")
-        .insert(data)
-        .select("id")
-        .single();
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
-      productId = inserted.id;
-    }
+    const res =
+      mode === "edit" && product
+        ? await fetch(`/api/admin/products/${product.id as string}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/admin/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
-    if (productId) {
-      await supabase.from("product_options").delete().eq("product_id", productId);
-      const { error: insErr } = await supabase.from("product_options").insert(
-        rows.map((r) => ({
-          product_id: productId,
-          weight: r.weight,
-          price: r.price,
-          compare_at: r.compare_at,
-          stock: r.stock,
-          position: r.position,
-        }))
-      );
-      if (insErr) {
-        setError(insErr.message);
-        setLoading(false);
-        return;
-      }
+    const result = await res.json();
+    if (!res.ok) {
+      setError(result.error ?? "Could not save product.");
+      setLoading(false);
+      return;
     }
 
     router.push("/admin/products");
@@ -200,9 +180,20 @@ export default function ProductForm({ mode, product }: Props) {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold text-dark mb-6">
-        {mode === "create" ? "New product" : "Edit product"}
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-dark">
+          {mode === "create" ? "New product" : "Edit product"}
+        </h2>
+        {mode === "edit" && product?.slug ? (
+          <a
+            href={`/shop/${product.id}`}
+            target="_blank"
+            className="text-xs font-medium text-brand hover:underline"
+          >
+            View on site →
+          </a>
+        ) : null}
+      </div>
 
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700">
@@ -253,10 +244,12 @@ export default function ProductForm({ mode, product }: Props) {
           />
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Name" name="name" defaultValue={product?.name as string} required />
-          <Field label="Slug (URL-friendly)" name="slug" defaultValue={product?.slug as string ?? ""} placeholder="auto-generated if empty" />
-        </div>
+        <TitleSlugFields
+          titleName="name"
+          titleLabel="Name"
+          titleDefault={(product?.name as string) ?? ""}
+          slugDefault={(product?.slug as string) ?? ""}
+        />
 
         <SelectField
           label="Category"
@@ -372,14 +365,34 @@ export default function ProductForm({ mode, product }: Props) {
         <Field label="Origin" name="origin" defaultValue={(product?.origin as string) ?? ""} />
 
         <label className="block">
-          <span className="block text-xs font-medium text-ink-soft mb-1.5">Description</span>
+          <span className="block text-xs font-medium text-ink-soft mb-1.5">Short description</span>
           <textarea
             name="description"
-            rows={3}
+            rows={2}
             defaultValue={(product?.description as string) ?? ""}
+            placeholder="One or two sentences shown under the product name."
             className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-none"
           />
         </label>
+
+        <label className="block">
+          <span className="block text-xs font-medium text-ink-soft mb-1.5">Full description</span>
+          <textarea
+            name="description_long"
+            rows={6}
+            defaultValue={(product?.description_long as string) ?? ""}
+            placeholder="Detailed description shown in the product details section. You can use plain text."
+            className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-y"
+          />
+        </label>
+
+        {mode === "create" || !optionsLoading ? (
+          <RelatedProductsPicker
+            defaultIds={relatedIds}
+            excludeId={product?.id as string}
+            onChange={setRelatedIds}
+          />
+        ) : null}
 
         {/* Toggles */}
         <div className="flex flex-wrap items-center gap-6 pt-1">

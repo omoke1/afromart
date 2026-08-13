@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Download, ChevronLeft, ChevronRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { CsvExportButton } from "@/components/admin/CsvExportButton";
 
 type Order = {
   id: string;
@@ -15,90 +15,60 @@ type Order = {
   tracking_number: string | null;
 };
 
-const STATUS_TABS = ["All", "Preparing", "Out for delivery", "Delivered", "Cancelled"] as const;
+const STATUS_TABS = ["All", "Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded"] as const;
 const PER_PAGE = 20;
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({ All: 0 });
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<(typeof STATUS_TABS)[number]>("All");
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("orders")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => {
-        setOrders((data ?? []) as unknown as Order[]);
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab, debouncedQuery]);
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page) });
+    if (tab !== "All") params.set("status", tab);
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    fetch(`/api/admin/orders?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setOrders((data.orders ?? []) as Order[]);
+        setCounts((data.counts ?? { All: 0 }) as Record<string, number>);
+        setTotal((data.total ?? 0) as number);
         setLoading(false);
-      });
-  }, []);
+      })
+      .catch(() => setLoading(false));
+  }, [tab, debouncedQuery, page]);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { All: orders.length };
-    for (const s of STATUS_TABS) if (s !== "All") c[s] = 0;
-    for (const o of orders) c[o.status] = (c[o.status] ?? 0) + 1;
-    return c;
-  }, [orders]);
-
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return orders.filter((o) => {
-      if (tab !== "All" && o.status !== tab) return false;
-      if (!q) return true;
-      return (
-        o.id.toLowerCase().includes(q) ||
-        (o.address?.name ?? "").toLowerCase().includes(q) ||
-        (o.tracking_number ?? "").toLowerCase().includes(q)
-      );
-    });
-  }, [orders, tab, query]);
-
-  const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const safePage = Math.min(page, totalPages);
-  const paged = visible.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
-  // Reset page when filters change — safePage clamps via Math.min
-
-  function exportCsv() {
-    const rows = [
-      ["Order ID", "Date", "Customer", "City", "Status", "Courier", "Tracking", "Total"],
-      ...visible.map((o) => [
-        o.id,
-        new Date(o.created_at).toISOString().slice(0, 10),
-        o.address?.name ?? "",
-        o.address?.city ?? "",
-        o.status,
-        o.courier ?? "",
-        o.tracking_number ?? "",
-        Number(o.total).toFixed(2),
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `afromart-orders-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const exportUrl = useMemo(() => {
+    const params = new URLSearchParams();
+    if (tab !== "All") params.set("status", tab);
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    const s = params.toString();
+    return `/api/admin/orders/export${s ? `?${s}` : ""}`;
+  }, [tab, debouncedQuery]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-dark">Orders</h2>
-        <button
-          onClick={exportCsv}
-          disabled={visible.length === 0}
-          className="flex items-center gap-1.5 h-9 px-4 rounded-full border border-[#e6e1d6] text-xs font-semibold text-dark hover:bg-white transition-colors disabled:opacity-50"
-        >
-          <Download className="w-3.5 h-3.5" />
-          Export CSV
-        </button>
+        <CsvExportButton url={exportUrl} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-5">
@@ -145,10 +115,10 @@ export default function AdminOrdersPage() {
           <tbody className="divide-y divide-[#e6e1d6]/50">
             {loading ? (
               <tr><td colSpan={7} className="py-12 text-center text-sm text-ink-muted">Loading…</td></tr>
-            ) : paged.length === 0 ? (
+            ) : orders.length === 0 ? (
               <tr><td colSpan={7} className="py-12 text-center text-sm text-ink-muted">No orders match.</td></tr>
             ) : (
-              paged.map((o) => (
+              orders.map((o) => (
                 <tr key={o.id} className="hover:bg-[#fafaf7]">
                   <td className="py-3 px-4 font-medium text-dark">{o.id.slice(0, 8)}…</td>
                   <td className="py-3 px-4 text-ink-soft">{new Date(o.created_at).toLocaleDateString()}</td>
@@ -179,7 +149,7 @@ export default function AdminOrdersPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-xs text-ink-muted">
-            {visible.length} orders · Page {safePage} of {totalPages}
+            {total} orders · Page {safePage} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -209,6 +179,7 @@ function StatusBadge({ status }: { status: string }) {
     "Out for delivery": "text-blue-700 bg-blue-50",
     Preparing: "text-amber-700 bg-amber-50",
     Cancelled: "text-red-600 bg-red-50",
+    Refunded: "text-purple-700 bg-purple-50",
   };
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[status] ?? "text-ink-muted bg-[#f4f1ea]"}`}>

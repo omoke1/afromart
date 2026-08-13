@@ -1,15 +1,16 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, ExternalLink } from "lucide-react";
+import { ConfirmDeleteButton } from "@/components/admin/ConfirmDeleteButton";
 
 export default async function AdminRecipesPage() {
-  const supabase = await createServerSupabase();
+  const supabase = createAdminClient();
 
   const recipesRaw = await supabase
     .from("recipes")
     .select("*")
     .order("title");
-  const recipes = (recipesRaw.data ?? []) as { id: string; emoji: string; title: string; level: string; time: string; serves: number }[];
+  const recipes = (recipesRaw.data ?? []) as { id: string; emoji: string; title: string; level: string; time: string; serves: number; slug: string }[];
 
   return (
     <div>
@@ -52,13 +53,28 @@ export default async function AdminRecipesPage() {
                 <td className="py-3 px-4 text-ink-soft">{r.time}</td>
                 <td className="py-3 px-4 text-ink-soft">{r.serves}</td>
                 <td className="py-3 px-4 text-right">
-                  <Link
-                    href={`/admin/recipes/${r.id}/edit`}
-                    className="inline-flex items-center gap-1 text-xs text-ink-soft hover:text-dark"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    Edit
-                  </Link>
+                  <div className="flex items-center justify-end gap-3">
+                    <Link
+                      href={`/recipes/${r.slug}`}
+                      target="_blank"
+                      className="inline-flex items-center gap-1 text-xs text-ink-soft hover:text-dark"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      View
+                    </Link>
+                    <Link
+                      href={`/admin/recipes/${r.id}/edit`}
+                      className="inline-flex items-center gap-1 text-xs text-ink-soft hover:text-dark"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      Edit
+                    </Link>
+                    <ConfirmDeleteButton
+                      endpoint={`/api/admin/recipes/${r.id}`}
+                      confirmTitle="Delete recipe?"
+                      confirmBody={`"${r.title}" will be permanently removed.`}
+                    />
+                  </div>
                 </td>
               </tr>
             ))}

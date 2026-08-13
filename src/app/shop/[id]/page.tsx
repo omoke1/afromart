@@ -19,7 +19,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     .select("*, categories(name, slug), product_options(id, weight, price, compare_at, stock)")
     .eq("id", id)
     .single();
-  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
+  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
 
@@ -34,12 +34,25 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }))
     .sort((a, b) => a.price - b.price);
 
-  const relatedRaw = await supabase
-    .from("products")
-    .select("*, categories(name), product_options(id, weight, price, stock)")
-    .eq("category_id", product.category_id)
-    .neq("id", product.id)
-    .limit(4);
+  const relatedRes = await supabase
+    .from("related_products")
+    .select("related_id")
+    .eq("product_id", id);
+  const curatedIds = (relatedRes.data ?? []).map((r) => r.related_id);
+
+  const relatedRaw =
+    curatedIds.length > 0
+      ? await supabase
+          .from("products")
+          .select("*, categories(name), product_options(id, weight, price, stock)")
+          .in("id", curatedIds)
+          .limit(4)
+      : await supabase
+          .from("products")
+          .select("*, categories(name), product_options(id, weight, price, stock)")
+          .eq("category_id", product.category_id)
+          .neq("id", product.id)
+          .limit(4);
   const related = (relatedRaw.data ?? []) as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null; product_options: OptionRow[] | null }[];
 
   const displayProduct = {
@@ -54,6 +67,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     badge: product.badge,
     weight: product.weight,
     description: product.description,
+    description_long: product.description_long,
     origin: product.origin,
     stock: product.stock,
     image_url: product.image_url ?? "",
@@ -154,13 +168,24 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
+        {displayProduct.description_long ? (
+          <section className="mt-14 max-w-3xl">
+            <h2 className="text-xl lg:text-2xl font-semibold text-dark tracking-tight mb-4">
+              Product details
+            </h2>
+            <div className="text-ink-soft leading-relaxed whitespace-pre-line">
+              {displayProduct.description_long}
+            </div>
+          </section>
+        ) : null}
+
         {relatedProducts.length > 0 && (
           <section className="mt-20">
             <div className="flex items-end justify-between mb-8">
               <div>
                 <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">You may also like</p>
                 <h2 className="text-2xl lg:text-3xl font-semibold text-dark tracking-tight">
-                  More from {displayProduct.category}
+                  {curatedIds.length > 0 ? "You may also like" : `More from ${displayProduct.category}`}
                 </h2>
               </div>
               <Link

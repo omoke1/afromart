@@ -2,36 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
+import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 
 export default function EditRecipePage() {
   const router = useRouter();
   const params = useParams();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [recipe, setRecipe] = useState<Record<string, unknown> | null>(null);
   const [ingredientsText, setIngredientsText] = useState("");
   const [stepsText, setStepsText] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("recipes").select("*").eq("id", params.id as string).single().then(({ data: raw }) => {
-      const data = raw as Record<string, unknown> | null;
-      if (data) {
-        setRecipe(data);
-        const ingredients = (data.ingredients as { name: string; productId?: string; amount: string }[]) ?? [];
-        setIngredientsText(
-          ingredients
-            .map((i) => {
-              let line = i.name;
-              if (i.productId) line = `[${i.productId}] ${line}`;
-              if (i.amount) line += ` — ${i.amount}`;
-              return line;
-            })
-            .join("\n")
-        );
-        setStepsText((data.steps as string[])?.join("\n") ?? "");
-      }
-    });
+    fetch(`/api/admin/recipes/${params.id as string}`)
+      .then((r) => r.json())
+      .then(({ recipe }) => {
+        const data = recipe as Record<string, unknown> | null;
+        if (data) {
+          setRecipe(data);
+          const ingredients = (data.ingredients as { name: string; productId?: string; amount: string }[]) ?? [];
+          setIngredientsText(
+            ingredients
+              .map((i) => {
+                let line = i.name;
+                if (i.productId) line = `[${i.productId}] ${line}`;
+                if (i.amount) line += ` — ${i.amount}`;
+                return line;
+              })
+              .join("\n")
+          );
+          setStepsText((data.steps as string[])?.join("\n") ?? "");
+        }
+      });
   }, [params.id]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -65,11 +68,15 @@ export default function EditRecipePage() {
       steps,
     };
 
-    const supabase = createClient();
-    const { error } = await supabase.from("recipes").update(data as never).eq("id", params.id as string);
+    const res = await fetch(`/api/admin/recipes/${params.id as string}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    if (error) {
-      alert(error.message);
+    if (!res.ok) {
+      const result = await res.json();
+      toast(result.error ?? "Could not update recipe.", "error");
       setLoading(false);
       return;
     }
@@ -82,13 +89,19 @@ export default function EditRecipePage() {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold text-dark mb-6">Edit recipe</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-dark">Edit recipe</h2>
+        <a
+          href={`/recipes/${recipe.slug}`}
+          target="_blank"
+          className="text-xs font-medium text-brand hover:underline"
+        >
+          View on site →
+        </a>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Title" name="title" defaultValue={recipe.title as string} required />
-          <Field label="Slug" name="slug" defaultValue={recipe.slug as string} required />
-        </div>
+        <TitleSlugFields titleDefault={recipe.title as string} slugDefault={recipe.slug as string} />
 
         <div className="grid grid-cols-4 gap-4">
           <Field label="Time" name="time" defaultValue={recipe.time as string} />

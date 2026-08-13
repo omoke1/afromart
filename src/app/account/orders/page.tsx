@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Package, ChevronRight } from "lucide-react";
 import AccountSidebar from "@/components/layout/AccountSidebar";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function statusColor(status: string) {
   switch (status) {
@@ -19,13 +20,14 @@ function statusColor(status: string) {
 }
 
 export default async function OrdersPage() {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
+  if (!user) return null;
 
-  const { data: ordersRaw } = await supabase
+  const admin = createAdminClient();
+  const { data: ordersRaw } = await admin
     .from("orders")
     .select("*")
-    .eq("user_id", user!.id)
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
   const orders = (ordersRaw ?? []) as {

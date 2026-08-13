@@ -1,4 +1,4 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function CustomerDetailPage({
   params,
@@ -6,7 +6,7 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createServerSupabase();
+  const supabase = createAdminClient();
 
   const profileRaw = await supabase
     .from("profiles")

@@ -38,7 +38,7 @@ function firstLineKey(lines: { productId: string; optionId: string | null }[]): 
 }
 
 export default function ProductCard({ product }: { product: ProductCardProduct }) {
-  const { lines, setLineQty, openProductDrawer } = useCart();
+  const { lines, setLineQty, add, openProductDrawer } = useCart();
   const { has, toggle } = useWishlist();
   const productLines = lines.filter((l) => l.productId === product.id);
   const qty = productLines.reduce((sum, l) => sum + l.qty, 0);
@@ -94,11 +94,13 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
               e.stopPropagation();
               if (openProductDrawer) {
                 openProductDrawer({
-                id: product.id,
-                name: product.name,
-                img: product.image_url ?? null,
-                options: displayOptions.map((o) => ({ id: o.id, label: o.weight, price: o.price, oldPrice: product.compare_at ?? undefined })),
+                  id: product.id,
+                  name: product.name,
+                  img: product.image_url ?? null,
+                  options: displayOptions.map((o) => ({ id: o.id, label: o.weight, price: o.price, oldPrice: product.compare_at ?? undefined })),
                 });
+              } else {
+                add(product.id, 1, null);
               }
             }}
             aria-label="Open product options"

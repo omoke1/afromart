@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
 
 const PER_PAGE = 20;
 
@@ -23,55 +23,72 @@ type Product = {
 type Category = { id: string; name: string };
 
 export default function AdminProductsPage() {
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [badgeFilter, setBadgeFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    Promise.all([
-      supabase.from("products").select("id, name, emoji, image_url, category_id, price, stock, badge, is_active, is_featured").order("name"),
-      supabase.from("categories").select("id, name").order("name"),
-    ]).then(([prodRes, catRes]) => {
-      setProducts((prodRes.data ?? []) as Product[]);
-      setCategories((catRes.data ?? []) as Category[]);
-      setLoading(false);
-    });
-  }, []);
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQuery, catFilter, badgeFilter, stockFilter, activeFilter]);
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return products.filter((p) => {
-      if (q && !p.name.toLowerCase().includes(q)) return false;
-      if (catFilter !== "all" && p.category_id !== catFilter) return false;
-      if (badgeFilter !== "all" && p.badge !== badgeFilter) return false;
-      if (stockFilter === "low" && p.stock > 10) return false;
-      if (stockFilter === "out" && p.stock > 0) return false;
-      if (activeFilter === "active" && !p.is_active) return false;
-      if (activeFilter === "inactive" && p.is_active) return false;
-      return true;
-    });
-  }, [products, query, catFilter, badgeFilter, stockFilter, activeFilter]);
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ page: String(page) });
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (catFilter !== "all") params.set("category", catFilter);
+    if (badgeFilter !== "all") params.set("badge", badgeFilter);
+    if (stockFilter !== "all") params.set("stock", stockFilter);
+    if (activeFilter !== "all") params.set("active", activeFilter);
+    fetch(`/api/admin/products?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setProducts((data.products ?? []) as Product[]);
+        setCategories((data.categories ?? []) as Category[]);
+        setTotal((data.total ?? 0) as number);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [page, debouncedQuery, catFilter, badgeFilter, stockFilter, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(visible.length / PER_PAGE));
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const safePage = Math.min(page, totalPages);
-  const paged = visible.slice((safePage - 1) * PER_PAGE, safePage * PER_PAGE);
 
   async function handleDelete() {
     if (!deleteId) return;
-    const supabase = createClient();
-    await supabase.from("products").delete().eq("id", deleteId);
-    setProducts((prev) => prev.filter((p) => p.id !== deleteId));
+    setDeleting(true);
+    const res = await fetch(`/api/admin/products/${deleteId}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setDeleting(false);
+    if (!res.ok) {
+      toast(data.error ?? "Could not delete product.", "error");
+      setDeleteId(null);
+      return;
+    }
+    toast("Product deleted.");
     setDeleteId(null);
+    fetch(`/api/admin/products?${new URLSearchParams({ page: String(page) }).toString()}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setProducts((d.products ?? []) as Product[]);
+        setTotal((d.total ?? 0) as number);
+      });
   }
 
   return (
@@ -155,10 +172,10 @@ export default function AdminProductsPage() {
           <tbody className="divide-y divide-[#e6e1d6]/50">
             {loading ? (
               <tr><td colSpan={7} className="py-12 text-center text-sm text-ink-muted">Loading…</td></tr>
-            ) : paged.length === 0 ? (
+            ) : products.length === 0 ? (
               <tr><td colSpan={7} className="py-12 text-center text-sm text-ink-muted">No products found.</td></tr>
             ) : (
-              paged.map((p) => (
+              products.map((p) => (
                 <tr key={p.id} className="hover:bg-[#fafaf7]">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
@@ -216,7 +233,7 @@ export default function AdminProductsPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
           <p className="text-xs text-ink-muted">
-            {visible.length} products · Page {safePage} of {totalPages}
+            {total} products · Page {safePage} of {totalPages}
           </p>
           <div className="flex items-center gap-2">
             {safePage > 1 ? (
@@ -253,15 +270,17 @@ export default function AdminProductsPage() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteId(null)}
-                className="h-9 px-4 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea] transition-colors"
+                disabled={deleting}
+                className="h-9 px-4 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea] transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                className="h-9 px-4 rounded-full bg-red text-white text-xs font-semibold hover:bg-red/90 transition-colors"
+                disabled={deleting}
+                className="h-9 px-4 rounded-full bg-red text-white text-xs font-semibold hover:bg-red/90 transition-colors disabled:opacity-50"
               >
-                Delete
+                {deleting ? "Deleting…" : "Delete"}
               </button>
             </div>
           </div>

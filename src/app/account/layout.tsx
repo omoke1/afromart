@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { getServerUser } from "@/lib/auth";
 import Navbar from "@/components/layout/Navbar";
 import CategoryBar from "@/components/layout/CategoryBar";
 import Footer from "@/components/layout/Footer";
 
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
   if (!user) redirect("/login");
 
   return (

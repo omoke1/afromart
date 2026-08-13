@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, ChevronRight, X, Loader2 } from "lucide-react";
 import AccountSidebar from "@/components/layout/AccountSidebar";
-import { createClient } from "@/lib/supabase/client";
 
 type Address = {
   id: string;
@@ -37,27 +36,19 @@ export default function AddressesPage() {
   const [saving, setSaving] = useState(false);
 
   async function loadAddresses() {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("addresses")
-      .select("*")
-      .order("is_default", { ascending: false })
-      .order("created_at", { ascending: true });
-    setAddresses(data ?? []);
+    const res = await fetch("/api/addresses");
+    const data = await res.json();
+    setAddresses(data.addresses ?? []);
     setLoading(false);
   }
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("addresses")
-        .select("*")
-        .order("is_default", { ascending: false })
-        .order("created_at", { ascending: true });
+      const res = await fetch("/api/addresses");
+      const data = await res.json();
       if (cancelled) return;
-      setAddresses(data ?? []);
+      setAddresses(data.addresses ?? []);
       setLoading(false);
     }
     load();
@@ -87,7 +78,6 @@ export default function AddressesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const supabase = createClient();
 
     const payload = {
       ...form,
@@ -95,10 +85,17 @@ export default function AddressesPage() {
     };
 
     if (editing) {
-      await supabase.from("addresses").update(payload).eq("id", editing.id);
+      await fetch(`/api/addresses/${editing.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      await supabase.from("addresses").insert({ ...payload, user_id: user!.id });
+      await fetch("/api/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     }
 
     setFormOpen(false);
@@ -109,15 +106,16 @@ export default function AddressesPage() {
   }
 
   async function handleDelete(id: string) {
-    const supabase = createClient();
-    await supabase.from("addresses").delete().eq("id", id);
+    await fetch(`/api/addresses/${id}`, { method: "DELETE" });
     await loadAddresses();
   }
 
   async function handleMakeDefault(id: string) {
-    const supabase = createClient();
-    await supabase.from("addresses").update({ is_default: false }).neq("id", id);
-    await supabase.from("addresses").update({ is_default: true }).eq("id", id);
+    await fetch(`/api/addresses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_default: true }),
+    });
     await loadAddresses();
   }
 

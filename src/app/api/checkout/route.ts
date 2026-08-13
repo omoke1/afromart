@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerUser } from "@/lib/auth";
 import { calculateShippingFee, parseWeightKg } from "@/lib/weight";
 import type { Json } from "@/lib/supabase/types";
 
@@ -44,10 +44,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Who is checking out (optional — guest checkout allowed)
-  const supabase = await createServerSupabase();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getServerUser();
 
   // Re-fetch real prices server-side — never trust client-sent prices.
   const admin = createAdminClient();
@@ -95,6 +92,16 @@ export async function POST(req: NextRequest) {
     const option = line.optionId
       ? ((product.product_options as unknown as Option[] | null) ?? []).find((o) => o.id === line.optionId)
       : undefined;
+
+    // Never oversell: check real stock server-side before creating the order.
+    const available = option ? Number(option.stock) : Number(product.stock);
+    if (line.qty > available) {
+      const label = option?.weight ? `${product.name} (${option.weight})` : product.name;
+      return NextResponse.json(
+        { error: `Only ${available} left of ${label}. Please reduce the quantity.` },
+        { status: 409 },
+      );
+    }
 
     const unitPrice = option ? Number(option.price) : Number(product.price);
     const weight = option?.weight ?? ((product.weight as string | null) ?? "");
@@ -168,6 +175,13 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+
+  await admin.from("order_events").insert({
+    order_id: order.id,
+    event: "created",
+    message: "Order placed",
+    actor: "system",
+  });
 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;

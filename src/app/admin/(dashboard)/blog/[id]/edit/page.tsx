@@ -2,24 +2,27 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
+import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 
 export default function EditBlogPostPage() {
   const router = useRouter();
   const params = useParams();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [post, setPost] = useState<Record<string, unknown> | null>(null);
   const [bodyText, setBodyText] = useState("");
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("blog_posts").select("*").eq("id", params.id as string).single().then(({ data: raw }) => {
-      const data = raw as Record<string, unknown> | null;
-      if (data) {
-        setPost(data);
-        setBodyText((data.body as string[])?.join("\n") ?? "");
-      }
-    });
+    fetch(`/api/admin/blog/${params.id as string}`)
+      .then((r) => r.json())
+      .then(({ post }) => {
+        const data = post as Record<string, unknown> | null;
+        if (data) {
+          setPost(data);
+          setBodyText((data.body as string[])?.join("\n") ?? "");
+        }
+      });
   }, [params.id]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -42,11 +45,15 @@ export default function EditBlogPostPage() {
       body,
     };
 
-    const supabase = createClient();
-    const { error } = await supabase.from("blog_posts").update(data as never).eq("id", params.id as string);
+    const res = await fetch(`/api/admin/blog/${params.id as string}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    if (error) {
-      alert(error.message);
+    if (!res.ok) {
+      const result = await res.json();
+      toast(result.error ?? "Could not update post.", "error");
       setLoading(false);
       return;
     }
@@ -59,13 +66,19 @@ export default function EditBlogPostPage() {
 
   return (
     <div className="max-w-2xl">
-      <h2 className="text-lg font-semibold text-dark mb-6">Edit post</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-dark">Edit post</h2>
+        <a
+          href={`/blog/${post.slug}`}
+          target="_blank"
+          className="text-xs font-medium text-brand hover:underline"
+        >
+          View on site →
+        </a>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Title" name="title" defaultValue={post.title as string} required />
-          <Field label="Slug" name="slug" defaultValue={post.slug as string} required />
-        </div>
+        <TitleSlugFields titleDefault={post.title as string} slugDefault={post.slug as string} />
 
         <div className="grid grid-cols-3 gap-4">
           <SelectField label="Category" name="category" value={post.category as string} required options={[

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Package, MapPin, Heart, CreditCard, LogOut, User, Menu, Settings } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 const items = [
   { label: "Overview", href: "/account", icon: User },
@@ -21,8 +20,7 @@ export default function AccountSidebar() {
   const [open, setOpen] = useState(false);
 
   async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
+    await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
   }

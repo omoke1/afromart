@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const EXTERNAL_API = "https://api.exchangerate.host/latest";
 const BASE = "GBP";
@@ -21,16 +21,15 @@ export async function GET(req: Request) {
 
   // update currencies table for any auto_update entries
   try {
-    const supabase = await createServerSupabase();
-    const supabaseAny = supabase as any;
-    const { data: autoCurrencies } = await supabaseAny.from('currencies').select('code').eq('auto_update', true);
+    const supabase = createAdminClient();
+    const { data: autoCurrencies } = await supabase.from('currencies').select('code').eq('auto_update', true);
     if (autoCurrencies?.length) {
       const updates = autoCurrencies
         .map((r: any) => ({ code: r.code, rate_to_base: json.rates?.[r.code] ?? 1 }))
         .filter(Boolean);
       if (updates.length) {
         for (const u of updates) {
-          await supabaseAny.from('currencies').upsert(u, { onConflict: ['code'] });
+          await supabase.from('currencies').upsert(u as never, { onConflict: 'code' });
         }
       }
     }

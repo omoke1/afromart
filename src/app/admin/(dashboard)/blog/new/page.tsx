@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
+import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 
 export default function NewBlogPostPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [bodyText, setBodyText] = useState("");
 
@@ -29,12 +31,15 @@ export default function NewBlogPostPage() {
       body,
     };
 
-    const supabase = createClient();
-    const { error } = await supabase.from("blog_posts").insert(data as never);
+    const res = await fetch("/api/admin/blog", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    if (error) {
-      alert(error.message);
-      setLoading(false);
+    if (!res.ok) {
+      const result = await res.json();
+      toast(result.error ?? "Could not save post.", "error");      setLoading(false);
       return;
     }
 
@@ -47,10 +52,7 @@ export default function NewBlogPostPage() {
       <h2 className="text-lg font-semibold text-dark mb-6">New blog post</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Title" name="title" required />
-          <Field label="Slug" name="slug" required />
-        </div>
+        <TitleSlugFields />
 
         <div className="grid grid-cols-3 gap-4">
           <SelectField label="Category" name="category" required options={[

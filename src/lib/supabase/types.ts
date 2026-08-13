@@ -52,6 +52,7 @@ export interface Database {
           bg_color: string;
           badge: string | null;
           description: string;
+          description_long: string;
           origin: string | null;
           stock: number;
           image_url: string;
@@ -73,6 +74,7 @@ export interface Database {
           bg_color: string;
           badge?: string | null;
           description: string;
+          description_long?: string;
           origin?: string | null;
           stock?: number;
           image_url?: string;
@@ -94,6 +96,7 @@ export interface Database {
           bg_color?: string;
           badge?: string | null;
           description?: string;
+          description_long?: string;
           origin?: string | null;
           stock?: number;
           image_url?: string;
@@ -115,6 +118,37 @@ export interface Database {
             foreignKeyName: "product_options_product_id_fkey";
             columns: ["id"];
             referencedRelation: "product_options";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      related_products: {
+        Row: {
+          product_id: string;
+          related_id: string;
+          created_at: string;
+        };
+        Insert: {
+          product_id: string;
+          related_id: string;
+          created_at?: string;
+        };
+        Update: {
+          product_id?: string;
+          related_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "related_products_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "related_products_related_id_fkey";
+            columns: ["related_id"];
+            referencedRelation: "products";
             referencedColumns: ["id"];
           }
         ];
@@ -208,6 +242,7 @@ export interface Database {
           courier: string | null;
           tracking_number: string | null;
           estimated_delivery: string | null;
+          payment_intent: string | null;
           created_at: string;
         };
         Insert: {
@@ -221,6 +256,7 @@ export interface Database {
           courier?: string | null;
           tracking_number?: string | null;
           estimated_delivery?: string | null;
+          payment_intent?: string | null;
           created_at?: string;
         };
         Update: {
@@ -234,6 +270,7 @@ export interface Database {
           courier?: string | null;
           tracking_number?: string | null;
           estimated_delivery?: string | null;
+          payment_intent?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -291,14 +328,49 @@ export interface Database {
           }
         ];
       };
-      profiles: {
+      order_events: {
         Row: {
+          id: string;
+          order_id: string;
+          event: string;
+          message: string | null;
+          actor: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          event: string;
+          message?: string | null;
+          actor?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          event?: string;
+          message?: string | null;
+          actor?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_events_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      profiles: {        Row: {
           id: string;
           name: string | null;
           email: string | null;
           phone: string | null;
           avatar_url: string | null;
           currency: string | null;
+          password_hash: string | null;
+          email_verified_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -308,6 +380,8 @@ export interface Database {
           phone?: string | null;
           avatar_url?: string | null;
           currency?: string | null;
+          password_hash?: string | null;
+          email_verified_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -317,6 +391,8 @@ export interface Database {
           phone?: string | null;
           avatar_url?: string | null;
           currency?: string | null;
+          password_hash?: string | null;
+          email_verified_at?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -570,6 +646,77 @@ export interface Database {
             foreignKeyName: "wishlist_items_product_id_fkey";
             columns: ["product_id"];
             referencedRelation: "products";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      auth_codes: {
+        Row: {
+          id: string;
+          user_id: string;
+          code_hash: string;
+          purpose: string;
+          attempts: number;
+          expires_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          code_hash: string;
+          purpose?: string;
+          attempts?: number;
+          expires_at: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          code_hash?: string;
+          purpose?: string;
+          attempts?: number;
+          expires_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "auth_codes_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          token_hash: string;
+          expires_at: string;
+          last_seen_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          token_hash: string;
+          expires_at: string;
+          last_seen_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          token_hash?: string;
+          expires_at?: string;
+          last_seen_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sessions_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           }
         ];

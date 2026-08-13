@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 
 type Category = {
   id: string;
@@ -26,9 +25,9 @@ export default function AdminCategoriesPage() {
   }, []);
 
   async function loadCategories() {
-    const supabase = createClient();
-    const { data } = await supabase.from("categories").select("*").order("name");
-    setCategories((data ?? []) as Category[]);
+    const res = await fetch("/api/admin/categories");
+    const data = await res.json();
+    setCategories((data.categories ?? []) as Category[]);
     setLoading(false);
   }
 
@@ -46,7 +45,6 @@ export default function AdminCategoriesPage() {
     e.preventDefault();
     setSaving(true);
     const form = new FormData(e.currentTarget);
-    const supabase = createClient();
 
     const payload = {
       name: form.get("name") as string,
@@ -57,9 +55,17 @@ export default function AdminCategoriesPage() {
     };
 
     if (modal === "edit" && editItem) {
-      await supabase.from("categories").update(payload).eq("id", editItem.id);
+      await fetch(`/api/admin/categories/${editItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     } else {
-      await supabase.from("categories").insert(payload);
+      await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
     }
 
     setModal(null);
@@ -70,8 +76,7 @@ export default function AdminCategoriesPage() {
 
   async function handleDelete() {
     if (!deleteId) return;
-    const supabase = createClient();
-    await supabase.from("categories").delete().eq("id", deleteId);
+    await fetch(`/api/admin/categories/${deleteId}`, { method: "DELETE" });
     setDeleteId(null);
     loadCategories();
   }

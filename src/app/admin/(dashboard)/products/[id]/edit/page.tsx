@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import ProductForm from "@/components/admin/ProductForm";
 
 export default function EditProductPage() {
@@ -11,14 +10,10 @@ export default function EditProductPage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from("products")
-      .select("*")
-      .eq("id", params.id as string)
-      .single()
-      .then(({ data }) => {
-        if (data) setProduct(data);
+    fetch(`/api/admin/products/${params.id as string}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.product) setProduct(data.product);
         else setNotFound(true);
       });
   }, [params.id]);

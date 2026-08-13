@@ -1,27 +1,41 @@
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Search } from "lucide-react";
+import { CsvExportButton } from "@/components/admin/CsvExportButton";
 
 const PER_PAGE = 20;
+
+function sanitizeQuery(q: string): string {
+  return q
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/,/g, " ")
+    .replace(/[()]/g, "");
+}
 
 export default async function AdminCustomersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
-  const { page: pageStr } = await searchParams;
-  const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const q = (params.q ?? "").trim();
 
-  const supabase = await createServerSupabase();
+  const supabase = createAdminClient();
 
   const from = (page - 1) * PER_PAGE;
   const to = from + PER_PAGE - 1;
 
-  const { data, count } = await supabase
-    .from("profiles")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  let query = supabase.from("profiles").select("*", { count: "exact" });
+  if (q) {
+    const like = `%${sanitizeQuery(q)}%`;
+    query = query.or(`email.ilike.${like},name.ilike.${like}`);
+  }
+  query = query.order("created_at", { ascending: false }).range(from, to);
+
+  const { data, count } = await query;
 
   const profiles = (data ?? []) as {
     id: string;
@@ -34,12 +48,32 @@ export default async function AdminCustomersPage({
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
   function pageUrl(p: number) {
-    return `/admin/customers?page=${p}`;
+    const sp = new URLSearchParams();
+    if (q) sp.set("q", q);
+    sp.set("page", String(p));
+    return `/admin/customers?${sp.toString()}`;
   }
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-dark mb-6">Customers</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold text-dark">Customers</h2>
+        <div className="flex items-center gap-3">
+          <form action="/admin/customers" className="relative">
+            <Search className="w-4 h-4 text-ink-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Search name or email…"
+              className="h-9 pl-9 pr-4 w-64 border border-[#e6e1d6] rounded-full text-sm text-dark bg-white focus:outline-none focus:border-dark"
+            />
+          </form>
+          <CsvExportButton
+            url={`/api/admin/customers/export${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+            label="Export CSV"
+          />
+        </div>
+      </div>
 
       <div className="bg-white border border-[#e6e1d6] rounded-xl overflow-hidden">
         <table className="w-full text-sm">
@@ -72,7 +106,7 @@ export default async function AdminCustomersPage({
             {!profiles.length && (
               <tr>
                 <td colSpan={4} className="py-12 text-center text-sm text-ink-muted">
-                  No customers yet.
+                  {q ? "No customers match your search." : "No customers yet."}
                 </td>
               </tr>
             )}

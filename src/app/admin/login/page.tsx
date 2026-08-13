@@ -1,43 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
 
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
     });
+    const data = await res.json();
 
-    if (authError) {
-      setError(authError.message);
+    if (!res.ok) {
+      setError(data.error ?? "Incorrect email or password.");
       setLoading(false);
       return;
     }
 
-    // Verify this account is actually an admin before entering the dashboard —
-    // otherwise the layout would bounce them straight back out.
-    const { data: role } = await supabase
-      .from("admin_roles")
-      .select("role")
-      .eq("user_id", data.user.id)
-      .maybeSingle();
-
-    if (!role) {
-      await supabase.auth.signOut();
+    // Verify this account is actually an admin before entering the dashboard.
+    if (!data.user?.isAdmin) {
+      await fetch("/api/auth/logout", { method: "POST" });
       setError("This account does not have admin access.");
       setLoading(false);
       return;
@@ -96,6 +87,13 @@ export default function AdminLoginPage() {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <p className="text-center text-xs text-ink-soft mt-4">
+          No password set yet?{" "}
+          <a href="/login?redirect=/admin" className="text-dark font-medium hover:text-brand">
+            Sign in with an email code
+          </a>
+        </p>
       </div>
     </div>
   );

@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { useToast } from "@/components/ui/ToastProvider";
+import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 
 export default function NewRecipePage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [ingredientsText, setIngredientsText] = useState("");
   const [stepsText, setStepsText] = useState("");
@@ -43,11 +45,15 @@ export default function NewRecipePage() {
       steps,
     };
 
-    const supabase = createClient();
-    const { error } = await supabase.from("recipes").insert(data as never);
+    const res = await fetch("/api/admin/recipes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
 
-    if (error) {
-      alert(error.message);
+    if (!res.ok) {
+      const result = await res.json();
+      toast(result.error ?? "Could not save recipe.", "error");
       setLoading(false);
       return;
     }
@@ -61,10 +67,7 @@ export default function NewRecipePage() {
       <h2 className="text-lg font-semibold text-dark mb-6">New recipe</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Title" name="title" required />
-          <Field label="Slug" name="slug" required />
-        </div>
+        <TitleSlugFields />
 
         <div className="grid grid-cols-4 gap-4">
           <Field label="Time" name="time" defaultValue="30m" />

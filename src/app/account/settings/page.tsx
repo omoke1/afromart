@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ChevronRight, Loader2, Check, User, Lock, ShieldCheck } from "lucide-react";
 import AccountSidebar from "@/components/layout/AccountSidebar";
-import { createClient } from "@/lib/supabase/client";
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -25,18 +24,12 @@ export default function SettingsPage() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      setEmail(user.email ?? "");
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name, phone")
-        .eq("id", user.id)
-        .single();
+      const res = await fetch("/api/profile");
+      const data = await res.json();
       if (cancelled) return;
-      setName(profile?.name ?? "");
-      setPhone(profile?.phone ?? "");
+      setEmail(data.profile?.email ?? "");
+      setName(data.profile?.name ?? "");
+      setPhone(data.profile?.phone ?? "");
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -47,15 +40,14 @@ export default function SettingsPage() {
     setSavingProfile(true);
     setProfileSaved(false);
     setProfileError(null);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase
-      .from("profiles")
-      .update({ name: name.trim(), phone: phone.trim() || null })
-      .eq("id", user!.id);
+    const res = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+    });
     setSavingProfile(false);
-    if (error) {
-      setProfileError(error.message);
+    if (!res.ok) {
+      setProfileError("Could not save your details. Try again.");
     } else {
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2500);
@@ -75,11 +67,15 @@ export default function SettingsPage() {
       return;
     }
     setSavingPw(true);
-    const supabase = createClient();
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    const res = await fetch("/api/auth/password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const data = await res.json();
     setSavingPw(false);
-    if (error) {
-      setPwError(error.message);
+    if (!res.ok) {
+      setPwError(data.error ?? "Could not update your password.");
     } else {
       setPwSaved(true);
       setNewPassword("");

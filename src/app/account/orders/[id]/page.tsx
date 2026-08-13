@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, Package, Truck, Check, XCircle, MapPin, ExternalLink } from "lucide-react";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerUser } from "@/lib/auth";
 import { trackingUrl } from "@/lib/couriers";
 import ReorderButton from "./ReorderButton";
 
@@ -22,25 +23,26 @@ function statusColor(status: string) {
 
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const supabase = await createServerSupabase();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await getServerUser();
+  if (!user) return null;
 
-  const { data: order } = await supabase
+  const admin = createAdminClient();
+  const { data: order } = await admin
     .from("orders")
     .select("*")
     .eq("id", id)
-    .eq("user_id", user!.id)
+    .eq("user_id", user.id)
     .single();
 
   if (!order) notFound();
 
-  const { data: items } = await supabase
+  const { data: items } = await admin
     .from("order_items")
     .select("*")
     .eq("order_id", id);
 
   const productIds = new Set((items ?? []).map((i: { product_id: string }) => i.product_id));
-  const { data: products } = await supabase
+  const { data: products } = await admin
     .from("products")
     .select("id, name, emoji, bg_color, price, weight, category_id, categories!inner(name)")
     .in("id", [...productIds]);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { adminDb, handleAuthError } from "@/lib/admin-api";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const DEFAULT_SETTINGS = {
   id: "default",
@@ -21,9 +22,8 @@ function normalizeSettings(data: any) {
 }
 
 export async function GET() {
-  const supabase = await createServerSupabase();
-  const supabaseAny = supabase as any;
-  const { data, error } = await supabaseAny
+  const db = createAdminClient();
+  const { data, error } = await db
     .from("shipping_settings")
     .select("*")
     .eq("id", "default")
@@ -37,30 +37,34 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const body = await req.json();
-  const existing = normalizeSettings(body);
-  const supabase = await createServerSupabase();
-  const supabaseAny = supabase as any;
+  try {
+    const db = await adminDb();
+    const body = await req.json();
+    const existing = normalizeSettings(body);
 
-  const { data, error } = await supabaseAny
-    .from("shipping_settings")
-    .upsert(
-      {
-        id: "default",
-        base_fee: existing.base_fee,
-        per_kg_fee: existing.per_kg_fee,
-        free_delivery_threshold: existing.free_delivery_threshold,
-        enabled: existing.enabled,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: ["id"] },
-    )
-    .select()
-    .maybeSingle();
+    const { data, error } = await db
+      .from("shipping_settings")
+      .upsert(
+        {
+          id: "default",
+          base_fee: existing.base_fee,
+          per_kg_fee: existing.per_kg_fee,
+          free_delivery_threshold: existing.free_delivery_threshold,
+          enabled: existing.enabled,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      )
+      .select()
+      .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ data: normalizeSettings(data) });
+  } catch (err) {
+    const res = await handleAuthError(err);
+    return res ?? NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-
-  return NextResponse.json({ data: normalizeSettings(data) });
 }

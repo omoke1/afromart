@@ -28,41 +28,9 @@ export async function getUserOrders(userId: string): Promise<OrderRow[]> {
   return data ?? [];
 }
 
-// Client-side: create order
-export async function createOrder(input: {
-  id: string;
-  subtotal: number;
-  delivery: number;
-  total: number;
-  address: Record<string, unknown>;
-  items: { product_id: string; qty: number; unit_price: number }[];
-}) {
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { data: order, error: orderError } = await supabase.from("orders").insert({
-    id: input.id,
-    user_id: user?.id ?? null,
-    subtotal: input.subtotal,
-    delivery: input.delivery,
-    total: input.total,
-    address: input.address as Json,
-    status: "Preparing",
-  }).select().single();
-
-  if (orderError) throw orderError;
-
-  const { error: itemsError } = await supabase.from("order_items").insert(
-    input.items.map((item) => ({
-      order_id: order.id,
-      ...item,
-    }))
-  );
-
-  if (itemsError) throw itemsError;
-
-  return order;
-}
+// Orders are created server-side by /api/checkout, which re-verifies prices
+// and attaches the signed-in user from the session cookie. There is
+// deliberately no client-side createOrder here.
 
 // Admin operations
 export async function adminGetOrders(): Promise<OrderWithItems[]> {

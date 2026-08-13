@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Plus, Trash2, ChevronRight, CreditCard, X, Loader2 } from "lucide-react";
 import AccountSidebar from "@/components/layout/AccountSidebar";
-import { createClient } from "@/lib/supabase/client";
 
 type Card = {
   id: string;
@@ -28,27 +27,19 @@ export default function PaymentPage() {
   const [saving, setSaving] = useState(false);
 
   async function loadCards() {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("payment_methods")
-      .select("*")
-      .order("is_default", { ascending: false })
-      .order("created_at", { ascending: true });
-    setCards((data ?? []) as Card[]);
+    const res = await fetch("/api/payment-methods");
+    const data = await res.json();
+    setCards((data.cards ?? []) as Card[]);
     setLoading(false);
   }
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("payment_methods")
-        .select("*")
-        .order("is_default", { ascending: false })
-        .order("created_at", { ascending: true });
+      const res = await fetch("/api/payment-methods");
+      const data = await res.json();
       if (cancelled) return;
-      setCards((data ?? []) as Card[]);
+      setCards((data.cards ?? []) as Card[]);
       setLoading(false);
     }
     load();
@@ -58,13 +49,10 @@ export default function PaymentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    await supabase.from("payment_methods").insert({
-      user_id: user!.id,
-      brand: form.brand,
-      last4: form.last4,
-      expiry: form.expiry,
+    await fetch("/api/payment-methods", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brand: form.brand, last4: form.last4, expiry: form.expiry }),
     });
     setFormOpen(false);
     setForm({ brand: "Visa", last4: "", expiry: "" });
@@ -73,15 +61,12 @@ export default function PaymentPage() {
   }
 
   async function handleDelete(id: string) {
-    const supabase = createClient();
-    await supabase.from("payment_methods").delete().eq("id", id);
+    await fetch(`/api/payment-methods/${id}`, { method: "DELETE" });
     await loadCards();
   }
 
   async function handleMakeDefault(id: string) {
-    const supabase = createClient();
-    await supabase.from("payment_methods").update({ is_default: false }).neq("id", id);
-    await supabase.from("payment_methods").update({ is_default: true }).eq("id", id);
+    await fetch(`/api/payment-methods/${id}`, { method: "PATCH" });
     await loadCards();
   }
 
