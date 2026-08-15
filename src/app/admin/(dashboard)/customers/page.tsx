@@ -41,8 +41,31 @@ export default async function AdminCustomersPage({
     id: string;
     name: string;
     email: string;
+    phone: string;
     created_at: string;
   }[];
+
+  const orderStats = new Map<
+    string,
+    { count: number; total: number }
+  >();
+  if (profiles.length > 0) {
+    const { data: userOrders } = await supabase
+      .from("orders")
+      .select("user_id, total, status")
+      .in("user_id", profiles.map((p) => p.id));
+    for (const o of (userOrders ?? []) as {
+      user_id: string | null;
+      total: number;
+      status: string;
+    }[]) {
+      if (!o.user_id) continue;
+      const stat = orderStats.get(o.user_id) ?? { count: 0, total: 0 };
+      stat.count += 1;
+      if (o.status !== "Cancelled") stat.total += Number(o.total);
+      orderStats.set(o.user_id, stat);
+    }
+  }
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -81,31 +104,42 @@ export default async function AdminCustomersPage({
             <tr className="text-left text-ink-muted text-xs border-b border-[#e6e1d6]">
               <th className="py-3 px-4 font-medium">Name</th>
               <th className="py-3 px-4 font-medium">Email</th>
+              <th className="py-3 px-4 font-medium">Phone</th>
+              <th className="py-3 px-4 font-medium text-right">Orders</th>
+              <th className="py-3 px-4 font-medium text-right">Total spent</th>
               <th className="py-3 px-4 font-medium">Joined</th>
               <th className="py-3 px-4 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e6e1d6]/50">
-            {profiles.map((p) => (
-              <tr key={p.id} className="hover:bg-[#fafaf7]">
-                <td className="py-3 px-4 font-medium text-dark">{p.name ?? "—"}</td>
-                <td className="py-3 px-4 text-ink-soft">{p.email ?? "—"}</td>
-                <td className="py-3 px-4 text-ink-soft">
-                  {new Date(p.created_at).toLocaleDateString()}
-                </td>
-                <td className="py-3 px-4 text-right">
-                  <Link
-                    href={`/admin/customers/${p.id}`}
-                    className="text-xs text-ink-soft hover:text-dark"
-                  >
-                    View →
-                  </Link>
-                </td>
-              </tr>
-            ))}
+            {profiles.map((p) => {
+              const stat = orderStats.get(p.id);
+              return (
+                <tr key={p.id} className="hover:bg-[#fafaf7]">
+                  <td className="py-3 px-4 font-medium text-dark">{p.name ?? "—"}</td>
+                  <td className="py-3 px-4 text-ink-soft">{p.email ?? "—"}</td>
+                  <td className="py-3 px-4 text-ink-soft">{p.phone ?? "—"}</td>
+                  <td className="py-3 px-4 text-right text-ink-soft">{stat?.count ?? 0}</td>
+                  <td className="py-3 px-4 text-right text-ink-soft">
+                    £{(stat?.total ?? 0).toFixed(2)}
+                  </td>
+                  <td className="py-3 px-4 text-ink-soft">
+                    {new Date(p.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="py-3 px-4 text-right">
+                    <Link
+                      href={`/admin/customers/${p.id}`}
+                      className="text-xs text-ink-soft hover:text-dark"
+                    >
+                      View →
+                    </Link>
+                  </td>
+                </tr>
+              );
+            })}
             {!profiles.length && (
               <tr>
-                <td colSpan={4} className="py-12 text-center text-sm text-ink-muted">
+                <td colSpan={7} className="py-12 text-center text-sm text-ink-muted">
                   {q ? "No customers match your search." : "No customers yet."}
                 </td>
               </tr>
