@@ -3,7 +3,7 @@ import { adminDb, handleAuthError } from "@/lib/admin-api";
 
 export const runtime = "nodejs";
 
-const STATUSES = ["Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded"];
+const STATUSES = ["Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded", "Ready for pickup"];
 
 function sanitizeQuery(q: string): string {
   return q

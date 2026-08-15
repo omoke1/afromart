@@ -42,7 +42,7 @@ type OrderEvent = {
   created_at: string;
 };
 
-const STATUSES = ["Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded"];
+const STATUSES = ["Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded", "Ready for pickup"];
 
 export default function OrderDetailPage() {
   const params = useParams();

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Bell, CheckCheck, PackageCheck, RotateCcw, AlertTriangle, UserPlus } from "lucide-react";
+import { Bell, CheckCheck, PackageCheck, RotateCcw, AlertTriangle, UserPlus, Megaphone } from "lucide-react";
 
 type Notification = {
   id: string;
@@ -37,6 +37,8 @@ function typeIcon(type: string) {
       return AlertTriangle;
     case "new_customer":
       return UserPlus;
+    case "announcement":
+      return Megaphone;
     default:
       return Bell;
   }

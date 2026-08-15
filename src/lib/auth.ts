@@ -74,6 +74,22 @@ async function findOrCreateUser(email: string): Promise<{ id: string; email: str
       body: normalized,
       link: `/admin/customers/${created.id}`,
     });
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    const { getAdminEmails } = await import("@/lib/notify");
+    const { sendNewCustomerEmail } = await import("@/lib/email");
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
+      await Promise.allSettled(
+        adminEmails.map((email) =>
+          sendNewCustomerEmail({
+            to: email,
+            customerEmail: normalized,
+            link: `${siteUrl}/admin/customers/${created.id}`,
+          }),
+        ),
+      );
+    }
   } catch (err) {
     console.error("new customer notification failed:", err);
   }

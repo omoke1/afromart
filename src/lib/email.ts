@@ -1,6 +1,8 @@
 // Resend email sending. Falls back to logging in dev when RESEND_API_KEY is not
 // set, so the app stays usable locally.
 
+import { trackingUrl } from "@/lib/couriers";
+
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export async function sendEmail({
@@ -34,32 +36,185 @@ export async function sendEmail({
   }
 }
 
-function shell({ title, children }: { title: string; children: string }) {
+type Cta = { href: string; label: string; bg?: string };
+
+const BRAND = "#1E000C";
+const ACCENT = "#FF4200";
+const INK = "#1E000C";
+const SOFT = "#555555";
+const MUTED = "#8a8a8a";
+const LINE = "#e6e1d6";
+const FAINT = "#f0ede4";
+const TINT = "#f4f1ea";
+
+function button({ href, label, bg = ACCENT }: Cta) {
+  return `
+    <div style="margin-top:24px;">
+      <a href="${href}" style="display:inline-block;background:${bg};color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:999px;">${label}</a>
+    </div>
+  `;
+}
+
+function kvRow(label: string, value: string, bold = false) {
+  return `
+    <tr>
+      <td style="padding:6px 0;font-size:13px;color:${MUTED};">${label}</td>
+      <td style="padding:6px 0;font-size:13px;color:${bold ? INK : SOFT};text-align:right;font-weight:${bold ? 700 : 400};">${value}</td>
+    </tr>
+  `;
+}
+
+function itemsTable(items: { name: string; qty: number; unitPrice: number }[]) {
+  return `
+    <table style="width:100%;border-collapse:collapse;margin:20px 0 0;font-size:13px;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px 0;border-bottom:1px solid ${LINE};color:${MUTED};font-weight:500;">Item</th>
+          <th style="text-align:center;padding:8px 0;border-bottom:1px solid ${LINE};color:${MUTED};font-weight:500;">Qty</th>
+          <th style="text-align:right;padding:8px 0;border-bottom:1px solid ${LINE};color:${MUTED};font-weight:500;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items
+          .map(
+            (i) => `
+          <tr>
+            <td style="padding:8px 0;border-bottom:1px solid ${FAINT};color:${INK};">${i.name}</td>
+            <td style="padding:8px 0;border-bottom:1px solid ${FAINT};color:${SOFT};text-align:center;">${i.qty}</td>
+            <td style="padding:8px 0;border-bottom:1px solid ${FAINT};color:${INK};text-align:right;">£${(i.unitPrice * i.qty).toFixed(2)}</td>
+          </tr>
+        `,
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function shell({
+  eyebrow,
+  title,
+  children,
+  cta,
+}: {
+  eyebrow?: string;
+  title: string;
+  children: string;
+  cta?: Cta;
+}) {
   return `
     <div style="background:#fafaf7;padding:32px 16px;font-family:Helvetica,Arial,sans-serif;">
-      <div style="max-width:440px;margin:0 auto;background:#ffffff;border:1px solid #e6e1d6;border-radius:16px;padding:32px;">
-        <p style="font-size:12px;letter-spacing:0.14em;text-transform:uppercase;color:#8a8a8a;margin:0 0 8px;">AfroMart</p>
-        <h1 style="font-size:20px;color:#1E000C;margin:0 0 16px;">${title}</h1>
-        ${children}
+      <div style="max-width:480px;margin:0 auto;">
+        <div style="background:#ffffff;border:1px solid ${LINE};border-radius:16px;overflow:hidden;">
+          <div style="background:${BRAND};padding:18px 28px;">
+            <p style="margin:0;color:#ffffff;font-size:13px;letter-spacing:0.18em;text-transform:uppercase;font-weight:700;">AfroMart</p>
+          </div>
+          <div style="padding:28px;">
+            ${eyebrow ? `<p style="font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:${ACCENT};margin:0 0 8px;font-weight:600;">${eyebrow}</p>` : ""}
+            <h1 style="font-size:22px;color:${INK};margin:0 0 16px;line-height:1.3;">${title}</h1>
+            ${children}
+            ${cta ? button(cta) : ""}
+          </div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:${MUTED};margin:20px 0 0;">AfroMart · <a href="https://afromart.xyz" style="color:${MUTED};">www.afromart.xyz</a></p>
       </div>
     </div>
   `;
 }
+
+function orderLine(orderId: string, total: number) {
+  return `
+    <div style="background:${TINT};border-radius:12px;padding:12px 16px;font-size:13px;color:${SOFT};margin:0 0 20px;">
+      Order <strong style="color:${INK};">${orderId}</strong> · <strong style="color:${INK};">£${total.toFixed(2)}</strong>
+    </div>
+  `;
+}
+
+// --- Customer emails -------------------------------------------------------
 
 export async function sendLoginCodeEmail(to: string, code: string): Promise<void> {
   await sendEmail({
     to,
     subject: "Your AfroMart login code",
     html: shell({
+      eyebrow: "Sign in",
       title: "Your login code",
       children: `
-        <p style="font-size:14px;color:#555555;margin:0 0 24px;">Use the code below to sign in. It expires in 10 minutes.</p>
-        <div style="background:#f4f1ea;border-radius:12px;padding:20px;text-align:center;font-size:32px;font-weight:700;letter-spacing:8px;color:#FF4200;">${code}</div>
-        <p style="font-size:12px;color:#8a8a8a;margin:24px 0 0;">If you didn't request this code, you can safely ignore this email.</p>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 20px;">Use the code below to sign in to your AfroMart account. It expires in 10 minutes.</p>
+        <div style="background:${TINT};border-radius:12px;padding:20px;text-align:center;font-size:32px;font-weight:700;letter-spacing:8px;color:${INK};">${code}</div>
+        <p style="font-size:12px;color:${MUTED};margin:20px 0 0;">If you didn't request this code, you can safely ignore this email.</p>
       `,
     }),
   });
 }
+
+export async function sendOrderConfirmationEmail({
+  to,
+  customerName,
+  orderId,
+  items,
+  subtotal,
+  delivery,
+  total,
+  link,
+}: {
+  to: string;
+  customerName: string;
+  orderId: string;
+  items: { name: string; qty: number; unitPrice: number }[];
+  subtotal: number;
+  delivery: number;
+  total: number;
+  link: string;
+}): Promise<void> {
+  await sendEmail({
+    to,
+    subject: `Payment received — order ${orderId}`,
+    html: shell({
+      eyebrow: "Order confirmation",
+      title: "Thanks — your payment went through",
+      children: `
+        <p style="font-size:14px;color:${SOFT};margin:0 0 4px;">Hi ${customerName},</p>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 20px;">We've received your payment for the order below and we're getting everything ready for you.</p>
+        ${itemsTable(items)}
+        <table style="width:100%;border-collapse:collapse;margin-top:8px;">
+          ${kvRow("Subtotal", `£${subtotal.toFixed(2)}`)}
+          ${kvRow("Delivery", delivery === 0 ? "Free" : `£${delivery.toFixed(2)}`)}
+          ${kvRow("Total", `£${total.toFixed(2)}`, true)}
+        </table>
+        <p style="font-size:12px;color:${MUTED};margin:16px 0 0;">You'll get a separate email with tracking details once your order ships.</p>
+      `,
+      cta: { href: link, label: "View your order", bg: BRAND },
+    }),
+  });
+}
+
+const STATUS_COPY: Record<string, { title: string; body: string }> = {
+  Preparing: {
+    title: "Your order is being prepared",
+    body: "We're getting your order ready and it will be on its way to you soon.",
+  },
+  "Out for delivery": {
+    title: "Your order is on its way",
+    body: "Your order has left us and is out for delivery.",
+  },
+  Delivered: {
+    title: "Your order has been delivered",
+    body: "Your order has been delivered. Enjoy — and thank you for shopping with AfroMart.",
+  },
+  Cancelled: {
+    title: "Your order has been cancelled",
+    body: "Your order was cancelled. If you have any questions, get in touch and we'll help.",
+  },
+  Refunded: {
+    title: "Your refund has been issued",
+    body: "Your refund has been processed. It can take 3–5 working days to appear in your account.",
+  },
+  "Ready for pickup": {
+    title: "Your order is ready for pickup",
+    body: "Your order has arrived and is ready to collect. Please bring your order reference and a form of ID. We'll hold it for you.",
+  },
+};
 
 export async function sendOrderStatusEmail({
   to,
@@ -67,59 +222,92 @@ export async function sendOrderStatusEmail({
   status,
   total,
   link,
+  courier,
+  trackingNumber,
+  estimatedDelivery,
 }: {
   to: string;
   orderId: string;
   status: string;
   total: number;
   link: string;
+  courier?: string | null;
+  trackingNumber?: string | null;
+  estimatedDelivery?: string | null;
 }): Promise<void> {
-  const statusCopy: Record<string, string> = {
-    Preparing: "Your order is being prepared",
-    "Out for delivery": "Your order is on its way",
-    Delivered: "Your order has been delivered",
-    Cancelled: "Your order has been cancelled",
-    Refunded: "Your refund has been issued",
+  const copy = STATUS_COPY[status] ?? {
+    title: "Order update",
+    body: `Your order ${orderId} has an update.`,
   };
+
+  const estBlock = estimatedDelivery
+    ? `<p style="font-size:14px;color:${SOFT};margin:0 0 4px;">Estimated delivery: <strong style="color:${INK};">${new Date(estimatedDelivery).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}</strong></p>`
+    : "";
+
+  const trackUrl = trackingUrl(courier ?? null, trackingNumber ?? null);
+  const trackingBlock =
+    courier && trackingNumber
+      ? `
+      <div style="background:${TINT};border-radius:12px;padding:16px 18px;margin-top:20px;font-size:13px;">
+        <p style="margin:0 0 8px;font-weight:600;color:${INK};">Tracking details</p>
+        <p style="margin:0 0 2px;color:${SOFT};">Courier: ${courier}</p>
+        <p style="margin:0 0 12px;color:${SOFT};">Tracking number: <strong style="color:${INK};">${trackingNumber}</strong></p>
+        ${trackUrl ? `<a href="${trackUrl}" style="display:inline-block;background:${ACCENT};color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:10px 18px;border-radius:999px;">Track your parcel</a>` : ""}
+      </div>
+    `
+      : "";
+
   await sendEmail({
     to,
-    subject: `${statusCopy[status] ?? "Order update"} — ${orderId}`,
+    subject: `${copy.title} — ${orderId}`,
     html: shell({
-      title: statusCopy[status] ?? "Order update",
+      eyebrow: "Order update",
+      title: copy.title,
       children: `
-        <p style="font-size:14px;color:#555555;margin:0 0 8px;">Order <strong>${orderId}</strong> · £${total.toFixed(2)}</p>
-        <p style="font-size:14px;color:#555555;margin:0 0 24px;">You can follow the progress of your order in your account.</p>
-        <a href="${link}" style="display:inline-block;background:#1E000C;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:999px;">View order</a>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 20px;">${copy.body}</p>
+        ${orderLine(orderId, total)}
+        ${estBlock}
+        ${trackingBlock}
       `,
+      cta: { href: link, label: "View your order", bg: BRAND },
     }),
   });
 }
+
+// --- Admin emails ----------------------------------------------------------
 
 export async function sendAdminNewOrderEmail({
   to,
   orderId,
   total,
   customerName,
+  itemCount,
   link,
 }: {
   to: string;
   orderId: string;
   total: number;
   customerName: string;
+  itemCount?: number;
   link: string;
 }): Promise<void> {
   await sendEmail({
     to,
     subject: `New order ${orderId} — £${total.toFixed(2)}`,
     html: shell({
+      eyebrow: "New sale",
       title: "New order received",
       children: `
-        <p style="font-size:14px;color:#555555;margin:0 0 8px;">A new order has just been placed.</p>
-        <p style="font-size:14px;color:#555555;margin:0 0 4px;">Order: <strong>${orderId}</strong></p>
-        <p style="font-size:14px;color:#555555;margin:0 0 4px;">Total: <strong>£${total.toFixed(2)}</strong></p>
-        <p style="font-size:14px;color:#555555;margin:0 0 24px;">Customer: ${customerName}</p>
-        <a href="${link}" style="display:inline-block;background:#FF4200;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:999px;">Open in admin</a>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 20px;">
+          ${customerName} just placed a new order${itemCount ? ` with ${itemCount} item${itemCount === 1 ? "" : "s"}` : ""}.
+        </p>
+        <table style="width:100%;border-collapse:collapse;">
+          ${kvRow("Order", orderId)}
+          ${kvRow("Customer", customerName)}
+          ${kvRow("Total", `£${total.toFixed(2)}`, true)}
+        </table>
       `,
+      cta: { href: link, label: "Open in admin" },
     }),
   });
 }
@@ -139,12 +327,70 @@ export async function sendLowStockEmail({
     to,
     subject: `Low stock: ${productName}`,
     html: shell({
+      eyebrow: "Inventory alert",
       title: "Low stock alert",
       children: `
-        <p style="font-size:14px;color:#555555;margin:0 0 8px;"><strong>${productName}</strong> is down to <strong>${stock}</strong> units.</p>
-        <p style="font-size:14px;color:#555555;margin:0 0 24px;">Consider restocking before it sells out.</p>
-        <a href="${link}" style="display:inline-block;background:#1E000C;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:12px 24px;border-radius:999px;">Open product</a>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 4px;"><strong style="color:${INK};">${productName}</strong> is down to <strong style="color:${INK};">${stock}</strong> unit${stock === 1 ? "" : "s"}.</p>
+        <p style="font-size:14px;color:${SOFT};margin:0;">Consider restocking before it sells out.</p>
       `,
+      cta: { href: link, label: "View products", bg: BRAND },
+    }),
+  });
+}
+
+export async function sendNewCustomerEmail({
+  to,
+  customerEmail,
+  link,
+}: {
+  to: string;
+  customerEmail: string;
+  link: string;
+}): Promise<void> {
+  await sendEmail({
+    to,
+    subject: "New customer signed up",
+    html: shell({
+      eyebrow: "New signup",
+      title: "New customer signed up",
+      children: `
+        <p style="font-size:14px;color:${SOFT};margin:0;">${customerEmail} just created an AfroMart account.</p>
+      `,
+      cta: { href: link, label: "View customer", bg: BRAND },
+    }),
+  });
+}
+
+export async function sendBroadcastEmail({
+  to,
+  title,
+  body,
+  link,
+}: {
+  to: string;
+  title: string;
+  body: string;
+  link?: string | null;
+}): Promise<void> {
+  const paragraphs = body
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(
+      (p) => `
+        <p style="font-size:14px;color:${SOFT};margin:0 0 12px;">${p}</p>
+      `,
+    )
+    .join("");
+
+  await sendEmail({
+    to,
+    subject: title,
+    html: shell({
+      eyebrow: "AfroMart announcement",
+      title,
+      children: paragraphs,
+      cta: link ? { href: link, label: "Find out more", bg: BRAND } : undefined,
     }),
   });
 }

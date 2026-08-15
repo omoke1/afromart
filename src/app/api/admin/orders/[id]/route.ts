@@ -129,6 +129,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               status: dispatched ? "Out for delivery" : newStatus,
               total: Number(current.total),
               link: `${siteUrl}/account/orders/${id}`,
+              courier: (update.courier as string | null | undefined) ?? current.courier,
+              trackingNumber: (update.tracking_number as string | null | undefined) ?? current.tracking_number,
+              estimatedDelivery: (update.estimated_delivery as string | null | undefined) ?? current.estimated_delivery,
             });
           }
         }

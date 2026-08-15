@@ -3,7 +3,6 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyAdmins, notifyUser } from "@/lib/notify";
-import { sendOrderStatusEmail } from "@/lib/email";
 
 // Stripe needs the raw body to verify the signature.
 export async function POST(req: NextRequest) {
@@ -45,7 +44,7 @@ export async function POST(req: NextRequest) {
 
         const { data: order } = await admin
           .from("orders")
-          .select("user_id, total")
+          .select("user_id, total, subtotal, delivery, address")
           .eq("id", orderId)
           .maybeSingle();
 
@@ -58,7 +57,7 @@ export async function POST(req: NextRequest) {
           actor: "system",
         });
 
-        // Tell the customer their payment went through.
+        // Tell the customer their payment went through (in-app + email).
         if (order?.user_id) {
           try {
             await notifyUser(order.user_id, {
@@ -70,6 +69,47 @@ export async function POST(req: NextRequest) {
           } catch (err) {
             console.error("webhook user notification failed:", err);
           }
+        }
+
+        // Email the customer an order confirmation with their items.
+        try {
+          const { sendOrderConfirmationEmail } = await import("@/lib/email");
+          const address = (order?.address ?? {}) as Record<string, string | null>;
+          const customerName = address.name ?? "";
+          const addressEmail = address.email ?? null;
+
+          let customerEmail = addressEmail;
+          if (order?.user_id) {
+            const { data: profile } = await admin
+              .from("profiles")
+              .select("email")
+              .eq("id", order.user_id)
+              .maybeSingle();
+            customerEmail = profile?.email ?? addressEmail;
+          }
+
+          if (customerEmail && customerName) {
+            const { data: items } = await admin
+              .from("order_items")
+              .select("qty, unit_price, weight, products(name, emoji)")
+              .eq("order_id", orderId);
+            const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+            await sendOrderConfirmationEmail({
+              to: customerEmail,
+              customerName,
+              orderId,
+              items: (items ?? []).map((i) => {
+                const label = i.weight ? `${i.products?.name ?? "Item"} (${i.weight})` : (i.products?.name ?? "Item");
+                return { name: `${i.products?.emoji ? i.products.emoji + " " : ""}${label}`, qty: i.qty, unitPrice: Number(i.unit_price) };
+              }),
+              subtotal: Number(order?.subtotal ?? 0),
+              delivery: Number(order?.delivery ?? 0),
+              total: Number(order?.total ?? 0),
+              link: `${siteUrl}/account/orders/${orderId}`,
+            });
+          }
+        } catch (err) {
+          console.error("webhook confirmation email failed:", err);
         }
       }
       break;

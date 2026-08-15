@@ -15,7 +15,7 @@ type Order = {
   tracking_number: string | null;
 };
 
-const STATUS_TABS = ["All", "Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded"] as const;
+const STATUS_TABS = ["All", "Preparing", "Out for delivery", "Delivered", "Cancelled", "Refunded", "Ready for pickup"] as const;
 const PER_PAGE = 20;
 
 export default function AdminOrdersPage() {
@@ -180,6 +180,7 @@ function StatusBadge({ status }: { status: string }) {
     Preparing: "text-amber-700 bg-amber-50",
     Cancelled: "text-red-600 bg-red-50",
     Refunded: "text-purple-700 bg-purple-50",
+    "Ready for pickup": "text-teal-700 bg-teal-50",
   };
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${colors[status] ?? "text-ink-muted bg-[#f4f1ea]"}`}>
