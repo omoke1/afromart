@@ -5,7 +5,7 @@ const ADMIN_PREFIX = "/admin";
 // Customer-facing routes that require a signed-in user
 const PROTECTED_PREFIXES = ["/account", "/checkout"];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isAdmin = pathname.startsWith(ADMIN_PREFIX);

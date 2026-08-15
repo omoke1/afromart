@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import NumberFlow from "@number-flow/react";
 import { useCart, useCartLines } from "@/lib/cart";
 import Link from "next/link";
 import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
@@ -57,6 +56,15 @@ export function InteractiveCheckout() {
     const lines = useCartLines();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [code, setCode] = useState("");
+    const [applying, setApplying] = useState(false);
+    const [applied, setApplied] = useState<null | {
+        kind: "promo" | "gift_card";
+        code: string;
+        discount: number;
+        label: string;
+    }>(null);
+    const [codeError, setCodeError] = useState<string | null>(null);
 
     const { settings } = useShippingSettings();
     const totalKg = lines.reduce((sum, line) => {
@@ -66,13 +74,64 @@ export function InteractiveCheckout() {
     const deliveryFee = !settings.enabled || subtotal >= settings.free_delivery_threshold || subtotal === 0
       ? 0
       : calculateShippingFee(totalKg, settings);
-    const totalPrice = subtotal + deliveryFee;
+    const discountAmount = applied
+      ? Math.min(applied.discount, subtotal + deliveryFee)
+      : 0;
+    const totalPrice = Math.max(0, subtotal + deliveryFee - discountAmount);
     const totalItems = lines.reduce((s, i) => s + i.qty, 0);
     const { currency: preferred } = usePreferredCurrency('GBP');
     const { convert, base } = useExchangeRates();
     const convertedSubtotal = preferred && preferred !== base ? convert(subtotal, preferred) : null;
     const convertedDelivery = preferred && preferred !== base ? convert(deliveryFee, preferred) : null;
     const convertedTotal = preferred && preferred !== base ? convert(totalPrice, preferred) : null;
+
+    const applyCode = async () => {
+        const clean = code.trim();
+        if (!clean) return;
+        setCodeError(null);
+        setApplying(true);
+        try {
+            const res = await fetch("/api/discounts/validate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: clean, subtotal }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.valid) {
+                setCodeError(data.error ?? "That code isn't valid.");
+                setApplied(null);
+                return;
+            }
+            if (data.kind === "gift_card" && subtotal + deliveryFee - Math.min(data.balance, subtotal + deliveryFee) < 0.01) {
+                setCodeError("This gift card covers your whole order — no payment needed, so remove it and try again.");
+                setApplied(null);
+                return;
+            }
+            const discount =
+                data.kind === "promo"
+                    ? data.discount
+                    : Math.min(data.balance, subtotal + deliveryFee);
+            setApplied({
+                kind: data.kind,
+                code: data.code,
+                discount,
+                label:
+                    data.kind === "promo"
+                        ? data.label
+                        : `£${Number(data.balance).toFixed(2)} balance`,
+            });
+            setCode("");
+        } catch {
+            setCodeError("Could not check that code. Please try again.");
+        } finally {
+            setApplying(false);
+        }
+    };
+
+    const removeCode = () => {
+        setApplied(null);
+        setCodeError(null);
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -99,6 +158,8 @@ export function InteractiveCheckout() {
                 body: JSON.stringify({
                     lines: rawLines.map((l) => ({ productId: l.productId, optionId: l.optionId, qty: l.qty })),
                     address,
+                    promoCode: applied?.kind === "promo" ? applied.code : undefined,
+                    giftCardCode: applied?.kind === "gift_card" ? applied.code : undefined,
                 }),
             });
             const data = await res.json();
@@ -283,6 +344,48 @@ export function InteractiveCheckout() {
                             </AnimatePresence>
                         </div>
 
+                        {/* Promo code / gift card */}
+                        <div className="mt-5 pt-5 border-t border-line">
+                            {applied ? (
+                                <div className="flex items-center justify-between gap-2 bg-brand/5 border border-brand/20 rounded-xl px-4 py-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-brand truncate">
+                                            {applied.kind === "promo" ? "Promo code" : "Gift card"} · {applied.code}
+                                        </p>
+                                        <p className="text-xs text-ink-muted">{applied.label}</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={removeCode}
+                                        className="text-xs font-medium text-ink-soft hover:text-red-600 shrink-0"
+                                    >
+                                        Remove
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <input
+                                        value={code}
+                                        onChange={(e) => setCode(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCode(); } }}
+                                        placeholder="Promo code or gift card"
+                                        className="flex-1 h-10 px-4 border border-line rounded-full text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={applyCode}
+                                        disabled={applying || !code.trim()}
+                                        className="h-10 px-4 rounded-full border border-dark text-dark text-sm font-medium hover:bg-dark hover:text-white transition-colors disabled:opacity-40"
+                                    >
+                                        {applying ? "Checking…" : "Apply"}
+                                    </button>
+                                </div>
+                            )}
+                            {codeError && (
+                                <p className="mt-2 text-xs text-red-600">{codeError}</p>
+                            )}
+                        </div>
+
                         {/* Totals + CTA */}
                         <motion.div layout className="pt-5 mt-4 border-t border-line">
                             <div className="space-y-3 mb-5">
@@ -290,6 +393,12 @@ export function InteractiveCheckout() {
                                     <span>Subtotal</span>
                                     <span>{formatCurrency(subtotal, base)}{convertedSubtotal ? ` · ${formatCurrency(convertedSubtotal, preferred)}` : ''}</span>
                                 </div>
+                                {discountAmount > 0 && applied && (
+                                    <div className="flex justify-between text-sm text-green">
+                                        <span>{applied.kind === "promo" ? `Discount (${applied.code})` : `Gift card (${applied.code})`}</span>
+                                        <span>−{formatCurrency(discountAmount, base)}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-sm text-ink-soft">
                                     <span>Delivery</span>
                                     <span>{deliveryFee === 0 ? "Free" : `${formatCurrency(deliveryFee, base)}${convertedDelivery ? ` · ${formatCurrency(convertedDelivery, preferred)}` : ''}`}</span>

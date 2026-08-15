@@ -155,6 +155,7 @@ export async function sendOrderConfirmationEmail({
   items,
   subtotal,
   delivery,
+  discount,
   total,
   link,
 }: {
@@ -164,6 +165,7 @@ export async function sendOrderConfirmationEmail({
   items: { name: string; qty: number; unitPrice: number }[];
   subtotal: number;
   delivery: number;
+  discount?: number;
   total: number;
   link: string;
 }): Promise<void> {
@@ -179,6 +181,7 @@ export async function sendOrderConfirmationEmail({
         ${itemsTable(items)}
         <table style="width:100%;border-collapse:collapse;margin-top:8px;">
           ${kvRow("Subtotal", `£${subtotal.toFixed(2)}`)}
+          ${discount && discount > 0 ? kvRow("Discount", `−£${discount.toFixed(2)}`, true) : ""}
           ${kvRow("Delivery", delivery === 0 ? "Free" : `£${delivery.toFixed(2)}`)}
           ${kvRow("Total", `£${total.toFixed(2)}`, true)}
         </table>
@@ -391,6 +394,90 @@ export async function sendBroadcastEmail({
       title,
       children: paragraphs,
       cta: link ? { href: link, label: "Find out more", bg: BRAND } : undefined,
+    }),
+  });
+}
+
+// Sent to a customer who left items in their cart (via the abandoned-cart cron).
+export async function sendAbandonedCartEmail({
+  to,
+  customerName,
+  items,
+  link,
+}: {
+  to: string;
+  customerName: string;
+  items: { name: string; qty: number }[];
+  link: string;
+}): Promise<void> {
+  const itemLines =
+    items.length > 0
+      ? items
+          .map(
+            (i) => `
+            <li style="padding:8px 0;border-bottom:1px solid ${FAINT};font-size:13px;color:${INK};">
+              ${i.qty}× ${i.name}
+            </li>
+          `,
+          )
+          .join("")
+      : "";
+
+  await sendEmail({
+    to,
+    subject: "You left something behind at AfroMart",
+    html: shell({
+      eyebrow: "Almost forgot",
+      title: "Your basket is still waiting",
+      children: `
+        <p style="font-size:14px;color:${SOFT};margin:0 0 4px;">Hi ${customerName},</p>
+        <p style="font-size:14px;color:${SOFT};margin:0 0 20px;">You added a few things to your basket but didn't finish checking out. Here's a quick reminder before they sell out:</p>
+        ${itemLines ? `<ul style="list-style:none;margin:0 0 20px;padding:0;">${itemLines}</ul>` : ""}
+      `,
+      cta: { href: link, label: "Return to your basket" },
+    }),
+  });
+}
+
+// Delivers a purchased gift card to the recipient.
+export async function sendGiftCardEmail({
+  to,
+  recipientName,
+  senderName,
+  amount,
+  code,
+  message,
+}: {
+  to: string;
+  recipientName?: string | null;
+  senderName?: string | null;
+  amount: number;
+  code: string;
+  message?: string | null;
+}): Promise<void> {
+  const hello = recipientName ? `Hi ${recipientName},` : "Hello,";
+  const messageBlock = message
+    ? `<p style="font-size:14px;color:${SOFT};margin:20px 0 0;font-style:italic;">"${message}"</p>`
+    : "";
+  const fromBlock = senderName
+    ? `<p style="font-size:12px;color:${MUTED};margin:12px 0 0;">From ${senderName}</p>`
+    : "";
+
+  await sendEmail({
+    to,
+    subject: `You've been gifted £${amount.toFixed(2)} at AfroMart`,
+    html: shell({
+      eyebrow: "A gift for you",
+      title: `You've received a £${amount.toFixed(2)} AfroMart gift card`,
+      children: `
+        <p style="font-size:14px;color:${SOFT};margin:0 0 4px;">${hello}</p>
+        <p style="font-size:14px;color:${SOFT};margin:0;">Use the code below at checkout to pay for your order. It never expires.</p>
+        <div style="background:${TINT};border-radius:12px;padding:20px;text-align:center;font-size:18px;font-weight:700;letter-spacing:2px;color:${INK};margin-top:20px;">${code}</div>
+        ${messageBlock}
+        ${fromBlock}
+        <p style="font-size:12px;color:${MUTED};margin:20px 0 0;">To spend it, add the code in the "Promo code or gift card" box at checkout.</p>
+      `,
+      cta: { href: "https://afromart.xyz/shop", label: "Shop at AfroMart" },
     }),
   });
 }

@@ -53,6 +53,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       is_active: body.is_active,
       is_featured: body.is_featured,
       featured_position: body.featured_position,
+      low_stock_threshold: body.low_stock_threshold,
       slug: body.slug || slugify(body.name),
     };
 

@@ -145,6 +145,7 @@ export default function ProductForm({ mode, product }: Props) {
       is_active: form.get("is_active") === "on",
       is_featured: form.get("is_featured") === "on",
       featured_position: parseInt(form.get("featured_position") as string) || 0,
+      low_stock_threshold: parseInt(form.get("low_stock_threshold") as string) || 5,
       slug: (form.get("slug") as string) || null,
     };
 
@@ -399,7 +400,11 @@ export default function ProductForm({ mode, product }: Props) {
           <Toggle name="is_active" label="Active (visible on shop)" defaultChecked={product ? (product.is_active as boolean) !== false : true} />
           <Toggle name="is_featured" label="Featured on homepage" defaultChecked={product?.is_featured as boolean ?? false} />
           <Field label="Featured position" name="featured_position" type="number" defaultValue={product ? String(product.featured_position ?? 0) : "0"} />
+          <Field label="Low-stock alert at" name="low_stock_threshold" type="number" defaultValue={product ? String(product.low_stock_threshold ?? 5) : "5"} />
         </div>
+        <p className="text-[11px] text-ink-muted -mt-2">
+          You&apos;ll be alerted when stock drops to this number. Defaults to 5.
+        </p>
 
         <div className="flex gap-3 pt-2">
           <button

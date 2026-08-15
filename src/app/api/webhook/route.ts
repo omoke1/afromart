@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyAdmins, notifyUser } from "@/lib/notify";
+import { generateGiftCardCode } from "@/lib/pricing";
 
 // Stripe needs the raw body to verify the signature.
 export async function POST(req: NextRequest) {
@@ -31,6 +32,13 @@ export async function POST(req: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
+
+      // Gift card purchases are their own flow — mint the card + email the code.
+      if (session.metadata?.type === "gift_card" && session.payment_status === "paid") {
+        await mintGiftCard(admin, session);
+        break;
+      }
+
       const orderId = session.metadata?.order_id;
       if (orderId && session.payment_status === "paid") {
         // Payment confirmed — record the payment reference and decrement stock.
@@ -44,11 +52,16 @@ export async function POST(req: NextRequest) {
 
         const { data: order } = await admin
           .from("orders")
-          .select("user_id, total, subtotal, delivery, address")
+          .select("user_id, total, subtotal, delivery, discount, gift_card_code, gift_card_used, address")
           .eq("id", orderId)
           .maybeSingle();
 
         await decrementStock(admin, orderId);
+
+        // Redeem promo + gift card usage now that payment is confirmed.
+        if (order) {
+          await redeemCodes(admin, orderId, order as { gift_card_code?: string | null; gift_card_used?: number });
+        }
 
         await admin.from("order_events").insert({
           order_id: orderId,
@@ -104,6 +117,7 @@ export async function POST(req: NextRequest) {
               }),
               subtotal: Number(order?.subtotal ?? 0),
               delivery: Number(order?.delivery ?? 0),
+              discount: Number(order?.discount ?? 0),
               total: Number(order?.total ?? 0),
               link: `${siteUrl}/account/orders/${orderId}`,
             });
@@ -137,6 +151,86 @@ export async function POST(req: NextRequest) {
 
 type Admin = ReturnType<typeof createAdminClient>;
 
+// Records a paid gift-card purchase and emails the code to the recipient.
+async function mintGiftCard(admin: Admin, session: Stripe.Checkout.Session) {
+  const meta = session.metadata ?? {};
+  const amount = Math.max(0, Number(meta.amount) || 0);
+  if (amount <= 0) return;
+
+  const code = generateGiftCardCode();
+  const { error } = await admin.from("gift_cards").insert({
+    code,
+    original_amount: amount,
+    balance: amount,
+    recipient_email: meta.recipient_email ?? "",
+    recipient_name: meta.recipient_name ?? null,
+    sender_name: meta.sender_name ?? null,
+    message: meta.message ?? null,
+    stripe_payment_intent:
+      typeof session.payment_intent === "string" ? session.payment_intent : null,
+    status: "active",
+  });
+  if (error) {
+    console.error("gift card insert failed:", error.message);
+    return;
+  }
+
+  try {
+    const { sendGiftCardEmail } = await import("@/lib/email");
+    await sendGiftCardEmail({
+      to: meta.recipient_email ?? "",
+      recipientName: meta.recipient_name ?? null,
+      senderName: meta.sender_name ?? null,
+      amount,
+      code,
+      message: meta.message ?? null,
+    });
+  } catch (err) {
+    console.error("gift card email failed:", err);
+  }
+}
+
+// Increments a promo code's usage count and reduces a gift card's balance once
+// an order that used them is actually paid for.
+async function redeemCodes(admin: Admin, orderId: string, order: { gift_card_code?: string | null; gift_card_used?: number }) {
+  const { data: orderRow } = await admin
+    .from("orders")
+    .select("discount_label")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (orderRow?.discount_label) {
+    const { data: promo } = await admin
+      .from("promo_codes")
+      .select("id, used_count")
+      .ilike("code", orderRow.discount_label)
+      .maybeSingle();
+    if (promo) {
+      await admin
+        .from("promo_codes")
+        .update({ used_count: (promo.used_count ?? 0) + 1 })
+        .eq("id", promo.id);
+    }
+  }
+
+  const code = order.gift_card_code;
+  const used = Number(order.gift_card_used ?? 0);
+  if (code && used > 0) {
+    const { data: card } = await admin
+      .from("gift_cards")
+      .select("id, balance")
+      .ilike("code", code)
+      .maybeSingle();
+    if (card) {
+      const nextBalance = Math.max(0, Number(card.balance) - used);
+      await admin
+        .from("gift_cards")
+        .update({ balance: nextBalance, status: nextBalance === 0 ? "redeemed" : "active" })
+        .eq("id", card.id);
+    }
+  }
+}
+
 const LOW_STOCK_THRESHOLD = 5;
 
 // Reduce the stock of the exact variant sold (product option when one was
@@ -148,6 +242,16 @@ async function decrementStock(admin: Admin, orderId: string) {
     .eq("order_id", orderId);
   if (error || !items || items.length === 0) return;
 
+  const productIds = Array.from(new Set(items.map((i) => i.product_id)));
+  const { data: productRows } = await admin
+    .from("products")
+    .select("id, name, low_stock_threshold")
+    .in("id", productIds);
+  const thresholdMap = new Map<string, number>(
+    (productRows ?? []).map((p) => [p.id, Number(p.low_stock_threshold) || LOW_STOCK_THRESHOLD]),
+  );
+  const nameMap = new Map<string, string>((productRows ?? []).map((p) => [p.id, p.name]));
+
   const withOptions = items.filter((i) => i.option_id);
   const withoutOptions = items.filter((i) => !i.option_id);
 
@@ -157,33 +261,29 @@ async function decrementStock(admin: Admin, orderId: string) {
       .from("product_options")
       .select("id, product_id, stock")
       .in("id", optionIds);
-    const optionProductIds = Array.from(new Set((options ?? []).map((o) => o.product_id)));
-    const { data: optionProducts } = optionProductIds.length > 0
-      ? await admin.from("products").select("id, name").in("id", optionProductIds)
-      : { data: [] as { id: string; name: string }[] };
-    const nameMap = new Map((optionProducts ?? []).map((p) => [p.id, p.name]));
 
     for (const opt of options ?? []) {
       const totalQty = withOptions.filter((i) => i.option_id === opt.id).reduce((s, i) => s + i.qty, 0);
       const newStock = Math.max(0, Number(opt.stock) - totalQty);
       await admin.from("product_options").update({ stock: newStock }).eq("id", opt.id);
-      if (newStock <= LOW_STOCK_THRESHOLD) {
+      const threshold = thresholdMap.get(opt.product_id) ?? LOW_STOCK_THRESHOLD;
+      if (newStock <= threshold) {
         await checkLowStock(admin, nameMap.get(opt.product_id) ?? "Product option", newStock);
       }
     }
   }
 
   if (withoutOptions.length > 0) {
-    const productIds = withoutOptions.map((i) => i.product_id);
     const { data: products } = await admin
       .from("products")
-      .select("id, name, stock")
+      .select("id, name, stock, low_stock_threshold")
       .in("id", productIds);
     for (const product of products ?? []) {
       const totalQty = withoutOptions.filter((i) => i.product_id === product.id).reduce((s, i) => s + i.qty, 0);
       const newStock = Math.max(0, Number(product.stock) - totalQty);
       await admin.from("products").update({ stock: newStock }).eq("id", product.id);
-      if (newStock <= LOW_STOCK_THRESHOLD) {
+      const threshold = Number(product.low_stock_threshold) || LOW_STOCK_THRESHOLD;
+      if (newStock <= threshold) {
         await checkLowStock(admin, product.name, newStock);
       }
     }

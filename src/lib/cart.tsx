@@ -47,6 +47,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     options?: { id: string; label: string; price?: number | string; oldPrice?: number | string }[];
   } | null>(null);
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
+  const [userId, setUserId] = useState<string | null>(null);
+  const syncingRef = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const meRes = await fetch("/api/auth/me");
+        const me = await meRes.json();
+        setUserId(me?.user?.id ?? null);
+      } catch {}
+    })();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +120,26 @@ export function CartProvider({ children }: { children: ReactNode }) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
     } catch {}
   }, [lines, hydrated]);
+
+  // Mirror the cart to the server when a signed-in user changes it, so the
+  // abandoned-cart emails know what they left behind.
+  useEffect(() => {
+    if (!hydrated || !userId || syncingRef.current) return;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        await fetch("/api/cart-tracking", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            lines: lines.map((l) => ({ productId: l.productId, qty: l.qty })),
+          }),
+        });
+      } catch {}
+    })();
+    return () => controller.abort();
+  }, [lines, hydrated, userId]);
 
   const value = useMemo<CartContextValue>(() => {
     const count = lines.reduce((n, l) => n + l.qty, 0);

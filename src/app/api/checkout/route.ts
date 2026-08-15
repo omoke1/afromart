@@ -5,6 +5,7 @@ import { getServerUser } from "@/lib/auth";
 import { calculateShippingFee, parseWeightKg } from "@/lib/weight";
 import { notifyAdmins, getAdminEmails } from "@/lib/notify";
 import { sendAdminNewOrderEmail } from "@/lib/email";
+import { validatePromoCode, validateGiftCard } from "@/lib/pricing";
 import type { Json } from "@/lib/supabase/types";
 
 type IncomingLine = { productId: string; optionId?: string | null; qty: number };
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { lines?: IncomingLine[]; address?: Address };
+  let body: { lines?: IncomingLine[]; address?: Address; promoCode?: string; giftCardCode?: string };
   try {
     body = await req.json();
   } catch {
@@ -140,7 +141,43 @@ export async function POST(req: NextRequest) {
   const shippingFeePence = !shippingSettings.enabled || subtotalPence >= Math.round(shippingSettings.free_delivery_threshold * 100)
     ? 0
     : Math.round(calculateShippingFee(totalKg, shippingSettings) * 100);
-  const totalPence = subtotalPence + shippingFeePence;
+  let totalPence = subtotalPence + shippingFeePence;
+
+  // ── Promo codes & gift cards (server-side validation only) ──
+  let discountPence = 0;
+  let discountLabel: string | null = null;
+  let giftCardUsedPence = 0;
+  let giftCardCode: string | null = null;
+
+  if (body.promoCode) {
+    const promo = await validatePromoCode(body.promoCode, subtotalPence / 100);
+    if (!promo.valid) {
+      return NextResponse.json({ error: promo.error }, { status: 400 });
+    }
+    discountPence = Math.min(Math.round(promo.discount * 100), subtotalPence);
+    discountLabel = body.promoCode.trim().toUpperCase();
+    totalPence -= discountPence;
+  }
+
+  if (body.giftCardCode) {
+    const gift = await validateGiftCard(body.giftCardCode);
+    if (!gift.valid) {
+      return NextResponse.json({ error: gift.error }, { status: 400 });
+    }
+    giftCardCode = body.giftCardCode.trim().toUpperCase();
+    giftCardUsedPence = Math.min(Math.round(gift.balance * 100), totalPence);
+    if (totalPence - giftCardUsedPence < 1) {
+      return NextResponse.json(
+        { error: "Your gift card covers this whole order — no payment needed, so please remove it and pay another way." },
+        { status: 400 },
+      );
+    }
+    totalPence -= giftCardUsedPence;
+  }
+
+  if (totalPence < 1) {
+    return NextResponse.json({ error: "Order total must be at least £0.01." }, { status: 400 });
+  }
 
   // Create a pending order first so we can reconcile via webhook
   const orderId = crypto.randomUUID();
@@ -152,6 +189,10 @@ export async function POST(req: NextRequest) {
       status: "Preparing",
       subtotal: subtotalPence / 100,
       delivery: shippingFeePence / 100,
+      discount: discountPence / 100,
+      discount_label: discountLabel,
+      gift_card_code: giftCardCode,
+      gift_card_used: giftCardUsedPence / 100,
       total: totalPence / 100,
       address: address as unknown as Json,
     })
@@ -222,6 +263,29 @@ export async function POST(req: NextRequest) {
         currency: "gbp",
         unit_amount: shippingFeePence,
         product_data: { name: "Delivery (24–48h UK)" },
+      },
+    });
+  }
+
+  // Apply the promo discount and gift card as negative line items so the
+  // customer sees exactly what they're paying on Stripe.
+  if (discountPence > 0 && discountLabel) {
+    stripeLineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "gbp",
+        unit_amount: -discountPence,
+        product_data: { name: `Promo code (${discountLabel})` },
+      },
+    });
+  }
+  if (giftCardUsedPence > 0 && giftCardCode) {
+    stripeLineItems.push({
+      quantity: 1,
+      price_data: {
+        currency: "gbp",
+        unit_amount: -giftCardUsedPence,
+        product_data: { name: `Gift card (${giftCardCode})` },
       },
     });
   }

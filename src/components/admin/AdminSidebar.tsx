@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -16,6 +16,8 @@ import {
   Shield,
   Settings,
   Megaphone,
+  Star,
+  Percent,
   ExternalLink,
   LogOut,
   Menu,
@@ -27,8 +29,10 @@ const navItems = [
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Categories", href: "/admin/categories", icon: Tag },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { label: "Shipping", href: "/admin/shipping", icon: Truck },
   { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Promo codes", href: "/admin/promo-codes", icon: Percent },
+  { label: "Reviews", href: "/admin/reviews", icon: Star },
+  { label: "Shipping", href: "/admin/shipping", icon: Truck },
   { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone },
   { label: "Blog", href: "/admin/blog", icon: FileText },
   { label: "Recipes", href: "/admin/recipes", icon: UtensilsCrossed },
@@ -41,10 +45,6 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
 
   async function handleSignOut() {
     await fetch("/api/auth/logout", { method: "POST" });

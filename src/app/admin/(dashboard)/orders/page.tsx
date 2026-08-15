@@ -29,16 +29,15 @@ export default function AdminOrdersPage() {
   const [page, setPage] = useState(1);
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query.trim()), 300);
+    const t = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setPage(1);
+      setLoading(true);
+    }, 300);
     return () => clearTimeout(t);
   }, [query]);
 
   useEffect(() => {
-    setPage(1);
-  }, [tab, debouncedQuery]);
-
-  useEffect(() => {
-    setLoading(true);
     const params = new URLSearchParams({ page: String(page) });
     if (tab !== "All") params.set("status", tab);
     if (debouncedQuery) params.set("q", debouncedQuery);
@@ -76,7 +75,11 @@ export default function AdminOrdersPage() {
           {STATUS_TABS.map((s) => (
             <button
               key={s}
-              onClick={() => setTab(s)}
+              onClick={() => {
+                setTab(s);
+                setPage(1);
+                setLoading(true);
+              }}
               className={
                 "h-8 px-3.5 rounded-full text-xs font-medium border transition-colors " +
                 (tab === s
@@ -153,14 +156,20 @@ export default function AdminOrdersPage() {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.max(1, p - 1));
+              }}
               disabled={safePage <= 1}
               className="h-8 px-3 rounded-lg border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
             >
               <ChevronLeft className="w-3.5 h-3.5" /> Prev
             </button>
             <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.min(totalPages, p + 1));
+              }}
               disabled={safePage >= totalPages}
               className="h-8 px-3 rounded-lg border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
             >

@@ -6,7 +6,12 @@ import CategoryBar from "@/components/layout/CategoryBar";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ui/ProductCard";
 import ProductBuyBox from "@/components/sections/ProductBuyBox";
+import ProductReviews, { type ReviewItem } from "@/components/sections/ProductReviews";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getServerUser } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,6 +27,73 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
+
+  const [reviewRes, user] = await Promise.all([
+    // Admin client so the reviewer's name comes through — the public client
+    // would be blocked from joining profiles by RLS.
+    createAdminClient()
+      .from("reviews")
+      .select("id, rating, title, body, created_at, user_id, profiles(name)")
+      .eq("product_id", id)
+      .eq("is_approved", true)
+      .order("created_at", { ascending: false }),
+    getServerUser(),
+  ]);
+
+  const reviewRows = (reviewRes.data ?? []) as {
+    id: string;
+    rating: number;
+    title: string;
+    body: string;
+    created_at: string;
+    user_id: string;
+    profiles: { name: string | null } | null;
+  }[];
+
+  const reviews: ReviewItem[] = reviewRows.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    title: r.title,
+    body: r.body,
+    created_at: r.created_at,
+    authorName: r.profiles?.name ?? null,
+    isOwner: r.user_id === user?.id,
+  }));
+
+  const reviewCount = reviews.length;
+  const reviewAverage =
+    reviewCount > 0
+      ? reviewRows.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+      : 0;
+  const hasReviewed = reviews.some((r) => r.isOwner);
+  const canReview = !!user && !hasReviewed;
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.afromart.xyz";
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description,
+    image: product.image_url ?? undefined,
+    category: product.categories?.name ?? undefined,
+    offers: {
+      "@type": "Offer",
+      priceCurrency: "GBP",
+      price: Number(product.price),
+      availability: Number(product.stock) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      url: `${siteUrl}/shop/${product.id}`,
+    },
+    ...(reviewCount > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: reviewAverage.toFixed(1),
+            reviewCount,
+          },
+        }
+      : {}),
+  };
 
   const cat = product.categories;
   const options = (product.product_options ?? [])
@@ -101,6 +173,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="bg-bg min-h-screen flex flex-col">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Navbar />
       <CategoryBar />
 
@@ -178,6 +254,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
           </section>
         ) : null}
+
+        <ProductReviews
+          productId={displayProduct.id}
+          reviews={reviews}
+          average={reviewAverage}
+          count={reviewCount}
+          canReview={canReview}
+          hasReviewed={hasReviewed}
+        />
 
         {relatedProducts.length > 0 && (
           <section className="mt-20">

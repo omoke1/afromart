@@ -59,6 +59,7 @@ export interface Database {
           is_featured: boolean;
           featured_position: number;
           is_active: boolean;
+          low_stock_threshold: number;
           slug: string | null;
           created_at: string;
           updated_at: string;
@@ -81,6 +82,7 @@ export interface Database {
           is_featured?: boolean;
           featured_position?: number;
           is_active?: boolean;
+          low_stock_threshold?: number;
           slug?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -103,6 +105,7 @@ export interface Database {
           is_featured?: boolean;
           featured_position?: number;
           is_active?: boolean;
+          low_stock_threshold?: number;
           slug?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -237,6 +240,10 @@ export interface Database {
           status: string;
           subtotal: number;
           delivery: number;
+          discount: number;
+          discount_label: string | null;
+          gift_card_code: string | null;
+          gift_card_used: number;
           total: number;
           address: Json;
           courier: string | null;
@@ -251,6 +258,10 @@ export interface Database {
           status?: string;
           subtotal: number;
           delivery?: number;
+          discount?: number;
+          discount_label?: string | null;
+          gift_card_code?: string | null;
+          gift_card_used?: number;
           total: number;
           address: Json;
           courier?: string | null;
@@ -265,6 +276,10 @@ export interface Database {
           status?: string;
           subtotal?: number;
           delivery?: number;
+          discount?: number;
+          discount_label?: string | null;
+          gift_card_code?: string | null;
+          gift_card_used?: number;
           total?: number;
           address?: Json;
           courier?: string | null;
@@ -844,6 +859,167 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "payment_methods_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      reviews: {
+        Row: {
+          id: string;
+          product_id: string;
+          user_id: string;
+          rating: number;
+          title: string;
+          body: string;
+          is_approved: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          user_id: string;
+          rating: number;
+          title?: string;
+          body?: string;
+          is_approved?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          product_id?: string;
+          user_id?: string;
+          rating?: number;
+          title?: string;
+          body?: string;
+          is_approved?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reviews_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      promo_codes: {
+        Row: {
+          id: string;
+          code: string;
+          description: string;
+          discount_type: string;
+          discount_value: number;
+          min_subtotal: number;
+          max_discount: number | null;
+          starts_at: string | null;
+          expires_at: string | null;
+          usage_limit: number | null;
+          used_count: number;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          description?: string;
+          discount_type: string;
+          discount_value: number;
+          min_subtotal?: number;
+          max_discount?: number | null;
+          starts_at?: string | null;
+          expires_at?: string | null;
+          usage_limit?: number | null;
+          used_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          description?: string;
+          discount_type?: string;
+          discount_value?: number;
+          min_subtotal?: number;
+          max_discount?: number | null;
+          starts_at?: string | null;
+          expires_at?: string | null;
+          usage_limit?: number | null;
+          used_count?: number;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      gift_cards: {
+        Row: {
+          id: string;
+          code: string;
+          original_amount: number;
+          balance: number;
+          recipient_email: string;
+          recipient_name: string | null;
+          sender_name: string | null;
+          message: string | null;
+          stripe_payment_intent: string | null;
+          status: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: string;
+          original_amount: number;
+          balance: number;
+          recipient_email: string;
+          recipient_name?: string | null;
+          sender_name?: string | null;
+          message?: string | null;
+          stripe_payment_intent?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: string;
+          original_amount?: number;
+          balance?: number;
+          recipient_email?: string;
+          recipient_name?: string | null;
+          sender_name?: string | null;
+          message?: string | null;
+          stripe_payment_intent?: string | null;
+          status?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      cart_reminders: {
+        Row: {
+          id: string;
+          user_id: string;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          sent_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          sent_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cart_reminders_user_id_fkey";
             columns: ["user_id"];
             referencedRelation: "profiles";
             referencedColumns: ["id"];
