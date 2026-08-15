@@ -10,26 +10,7 @@ INSERT INTO categories (id, name, slug, emoji, bg_color, description) VALUES
   ('c0010000-0000-4000-8000-000000000008', 'Food Bundles', 'bundles', '🧺', '#E6EEFB', 'Curated bundles — jollof kit, stew base, weekly grocery boxes.')
 ON CONFLICT (slug) DO NOTHING;
 
--- Seed data: Products
-INSERT INTO products (id, name, category_id, weight, price, compare_at, emoji, bg_color, badge, description, origin, stock) VALUES
-  ('a0010000-0000-4000-8000-000000000001', 'Parboiled Long Grain Rice', 'c0010000-0000-4000-8000-000000000001', '10 kg', 18.99, 22.99, '🍚', '#F4E4C8', 'promo', 'Premium long-grain parboiled rice — fluffy, separated grains perfect for jollof, fried rice and party rice. Sourced from trusted mills.', 'Thailand', 42),
-  ('a0010000-0000-4000-8000-000000000002', 'Pure Red Palm Oil', 'c0010000-0000-4000-8000-000000000002', '1 L', 7.99, NULL, '🫙', '#FBD7C2', 'best-seller', 'Unrefined red palm oil pressed from fresh palm fruit. The base of efo riro, banga, ofada stew and countless West African dishes.', 'Nigeria', 120),
-  ('a0010000-0000-4000-8000-000000000003', 'Instant Noodles Bundle', 'c0010000-0000-4000-8000-000000000004', '40 × 70 g', 13.49, NULL, '🍜', '#FFE3C8', NULL, 'A full carton of chicken-flavour instant noodles — pantry staple for quick meals.', 'Nigeria', 30),
-  ('a0010000-0000-4000-8000-000000000004', 'Yam Flour (Poundo)', 'c0010000-0000-4000-8000-000000000001', '5 kg', 14.99, NULL, '🍠', '#EAF6E4', NULL, 'Smooth poundo yam flour — ready in minutes for that authentic pounded-yam texture.', 'Nigeria', 64),
-  ('a0010000-0000-4000-8000-000000000005', 'Jollof Seasoning Cubes', 'c0010000-0000-4000-8000-000000000003', '100 g', 2.49, NULL, '🧂', '#FBE4E4', 'best-seller', 'All-in-one seasoning cubes balanced for jollof rice, stews and soups.', 'Ghana', 200),
-  ('a0010000-0000-4000-8000-000000000006', 'Evaporated Milk', 'c0010000-0000-4000-8000-000000000002', '170 g', 1.29, NULL, '🥛', '#E4F3F7', NULL, 'Rich evaporated milk for tea, custard and baking.', NULL, 180),
-  ('a0010000-0000-4000-8000-000000000007', 'Ground Egusi Seeds', 'c0010000-0000-4000-8000-000000000002', '1 kg', 8.49, NULL, '🟡', '#FBF4D9', 'new', 'Stone-ground melon seeds — the soul of egusi soup. Cleaned, dried and ready to cook.', 'Nigeria', 55),
-  ('a0010000-0000-4000-8000-000000000008', 'Suya Pepper Spice', 'c0010000-0000-4000-8000-000000000003', '200 g', 3.99, 4.99, '🌶️', '#F4ECFB', 'promo', 'Smoky, nutty, spicy — authentic suya blend for grilled meats and roasted plantain.', 'Nigeria', 90),
-  ('a0010000-0000-4000-8000-000000000009', 'Plantain Flour', 'c0010000-0000-4000-8000-000000000001', '1 kg', 4.99, NULL, '🍌', '#FBEFE0', NULL, 'Unripe plantain flour — a wholesome, low-GI swallow alternative.', NULL, 75),
-  ('a0010000-0000-4000-8000-000000000010', 'Chocolate Malt Drink', 'c0010000-0000-4000-8000-000000000004', '800 g', 9.49, NULL, '🍫', '#E8DCC4', NULL, 'Chocolatey malted drink — childhood in a tin.', NULL, 60),
-  ('a0010000-0000-4000-8000-000000000011', 'Dried Stockfish (Medium)', 'c0010000-0000-4000-8000-000000000005', '300 g', 12.99, NULL, '🐟', '#E4F3F7', NULL, 'Sun-dried Norwegian stockfish — deep, smoky flavour for soups and stews.', 'Norway', 28),
-  ('a0010000-0000-4000-8000-000000000012', 'Ijebu Garri', 'c0010000-0000-4000-8000-000000000001', '5 kg', 11.49, NULL, '🌾', '#FBF4D9', NULL, 'Fine, sour Ijebu garri — drink it cold or make eba.', 'Nigeria', 80),
-  ('a0010000-0000-4000-8000-000000000013', 'Raw Forest Honey', 'c0010000-0000-4000-8000-000000000006', '500 g', 10.99, NULL, '🍯', '#F4ECFB', 'new', 'Unfiltered, raw honey from the rainforest belt — strong floral notes.', 'Cameroon', 45),
-  ('a0010000-0000-4000-8000-000000000014', 'Plantain Chips', 'c0010000-0000-4000-8000-000000000004', '200 g', 2.99, NULL, '🍌', '#FBEFE0', NULL, 'Crispy, lightly salted plantain chips — the perfect snack with cold drinks.', NULL, 140),
-  ('a0010000-0000-4000-8000-000000000015', 'Ofada Brown Rice', 'c0010000-0000-4000-8000-000000000001', '5 kg', 16.99, NULL, '🍚', '#F4E4C8', NULL, 'Native short-grain ofada rice — earthy, nutty and perfect with ayamase stew.', 'Nigeria', 38),
-  ('a0010000-0000-4000-8000-000000000016', 'Jollof Party Bundle', 'c0010000-0000-4000-8000-000000000008', 'Serves 8–10', 39.99, 47.50, '🧺', '#E6EEFB', 'promo', 'Everything you need for a jollof feast: 5 kg parboiled rice, 1 L palm oil, jollof cubes, suya spice, tomato paste and curry powder.', NULL, 22)
-ON CONFLICT (id) DO NOTHING;
-
+-- Demo products intentionally removed. Real products are uploaded via the admin dashboard.
 -- Seed data: Blog posts
 INSERT INTO blog_posts (id, slug, title, excerpt, category, read_time, emoji, bg_color, author, date, body) VALUES
   ('b0010000-0000-4000-8000-000000000001', 'perfect-jollof-rice', 'The secret to party-style Jollof rice', 'Smoky, deeply flavoured and never mushy — the steps Nigerian aunties keep close to chest.', 'Recipes', '6 min read', '🍚', '#F4E4C8', 'Adaeze O.', '12 June 2026',
