@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { adminDb, handleAuthError } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth";
 import { stripe } from "@/lib/stripe";
+import { notifyUser } from "@/lib/notify";
+import { sendOrderStatusEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -36,6 +38,35 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
       message: `Refund issued via Stripe`,
       actor: admin.email,
     });
+
+    // Notify the customer about their refund (in-app + email).
+    if (order.user_id) {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+        await notifyUser(order.user_id, {
+          type: "refund",
+          title: "Refund issued",
+          body: `Your refund for order ${id} has been processed. It may take 3–5 working days to appear.`,
+          link: `/account/orders/${id}`,
+        });
+        const { data: profile } = await db
+          .from("profiles")
+          .select("email")
+          .eq("id", order.user_id)
+          .maybeSingle();
+        if (profile?.email) {
+          await sendOrderStatusEmail({
+            to: profile.email,
+            orderId: id,
+            status: "Refunded",
+            total: Number(order.total),
+            link: `${siteUrl}/account/orders/${id}`,
+          });
+        }
+      } catch (err) {
+        console.error("refund notification failed:", err);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {

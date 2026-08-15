@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { adminDb, handleAuthError } from "@/lib/admin-api";
 import { requireAdmin } from "@/lib/auth";
+import { notifyUser } from "@/lib/notify";
+import { sendOrderStatusEmail } from "@/lib/email";
 import type { Json } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
@@ -94,6 +96,45 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       await db.from("order_events").insert(
         events.map((e) => ({ order_id: id, event: e.event, message: e.message, actor: admin.email })),
       );
+    }
+
+    // Notify the customer about their order status change (in-app + email).
+    if (current.user_id) {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+        const newStatus = (update.status as string) ?? current.status;
+        const dispatched = events.some((e) => e.event === "dispatched");
+
+        if (newStatus !== current.status || dispatched) {
+          const title = dispatched
+            ? "Your order has been dispatched"
+            : `Order ${newStatus.toLowerCase()}`;
+          await notifyUser(current.user_id, {
+            type: "order_status",
+            title,
+            body: dispatched
+              ? `Order ${id} is on its way${update.courier ? ` via ${update.courier}` : ""}.`
+              : `Order ${id} is now ${newStatus}.`,
+            link: `/account/orders/${id}`,
+          });
+          const { data: profile } = await db
+            .from("profiles")
+            .select("email")
+            .eq("id", current.user_id)
+            .maybeSingle();
+          if (profile?.email) {
+            await sendOrderStatusEmail({
+              to: profile.email,
+              orderId: id,
+              status: dispatched ? "Out for delivery" : newStatus,
+              total: Number(current.total),
+              link: `${siteUrl}/account/orders/${id}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("order status notification failed:", err);
+      }
     }
 
     return NextResponse.json({ ok: true });

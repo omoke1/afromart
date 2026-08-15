@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getServerUser } from "@/lib/auth";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminNotificationBell from "@/components/admin/AdminNotificationBell";
 import { ToastProvider } from "@/components/ui/ToastProvider";
 
 // This layout lives in the (dashboard) route group, so it wraps every admin
@@ -33,6 +34,7 @@ export default async function AdminLayout({
             <h1 className="text-sm font-semibold text-dark">AfroMart Admin</h1>
           </div>
           <div className="flex items-center gap-4 text-xs text-ink-soft">
+            <AdminNotificationBell />
             <Link
               href="/"
               target="_blank"

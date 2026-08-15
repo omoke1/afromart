@@ -650,6 +650,49 @@ export interface Database {
           }
         ];
       };
+      notifications: {
+        Row: {
+          id: string;
+          scope: string;
+          user_id: string | null;
+          type: string;
+          title: string;
+          body: string;
+          link: string | null;
+          is_read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          scope: string;
+          user_id?: string | null;
+          type?: string;
+          title: string;
+          body?: string;
+          link?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          scope?: string;
+          user_id?: string | null;
+          type?: string;
+          title?: string;
+          body?: string;
+          link?: string | null;
+          is_read?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       auth_codes: {
         Row: {
           id: string;

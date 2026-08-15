@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { Package, ShoppingCart, Users, TrendingUp } from "lucide-react";
+import { Package, ShoppingCart, Users, TrendingUp, Star, Wallet } from "lucide-react";
 import Link from "next/link";
 
 type OrderRow = { id: string; status: string; total: number; created_at: string; address: Record<string, string> | null; user_id: string | null };
@@ -26,6 +26,12 @@ async function getStats() {
     weekRes,
     monthRes,
     trendRes,
+    topProductsRes,
+    newCustomersRes,
+    todayCustomersRes,
+    weekCustomersRes,
+    monthCustomersRes,
+    statusRes,
   ] = await Promise.all([
     admin.from("products").select("*", { count: "exact", head: true }),
     admin.from("orders").select("*", { count: "exact", head: true }),
@@ -38,6 +44,17 @@ async function getStats() {
     admin.from("orders").select("total").gte("created_at", startOfWeek).neq("status", "Cancelled"),
     admin.from("orders").select("total").gte("created_at", startOfMonth).neq("status", "Cancelled"),
     admin.from("orders").select("total, created_at").gte("created_at", startOf14).neq("status", "Cancelled"),
+    admin
+      .from("order_items")
+      .select("product_id, qty, products(name, emoji, id)")
+      .gte("created_at", startOfMonth)
+      .order("qty", { ascending: false })
+      .limit(50),
+    admin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOf14),
+    admin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfDay),
+    admin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfWeek),
+    admin.from("profiles").select("*", { count: "exact", head: true }).gte("created_at", startOfMonth),
+    admin.from("orders").select("status"),
   ]);
 
   const revenueData = (allRevenueRes.data ?? []) as { total: number }[];
@@ -64,9 +81,48 @@ async function getStats() {
   const trend = trendDays;
   const trendPeak = Math.max(...trend.map((t) => t.revenue), 1);
 
+  // New customers per day for the last 14 days.
+  const customerDays: { day: string; count: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    customerDays.push({ day: `${d.getMonth() + 1}/${d.getDate()}`, count: 0 });
+  }
+  const cDayIndex = new Map(customerDays.map((t, idx) => [t.day, idx]));
+  for (const p of (newCustomersRes.data ?? []) as { created_at: string }[]) {
+    const d = new Date(p.created_at);
+    const key = `${d.getMonth() + 1}/${d.getDate()}`;
+    const idx = cDayIndex.get(key);
+    if (idx !== undefined) customerDays[idx].count += 1;
+  }
+
+  // Top-selling products by units sold (last 30 days).
+  const qtyByProduct = new Map<string, { qty: number; name: string; emoji: string }>();
+  for (const item of (topProductsRes.data ?? []) as {
+    product_id: string;
+    qty: number;
+    products: { name: string; emoji: string } | null;
+  }[]) {
+    const existing = qtyByProduct.get(item.product_id);
+    const product = item.products ?? { name: "Deleted product", emoji: "❓" };
+    if (existing) existing.qty += item.qty;
+    else qtyByProduct.set(item.product_id, { qty: item.qty, name: product.name, emoji: product.emoji });
+  }
+  const topProducts = Array.from(qtyByProduct.values())
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 5);
+
+  // Order status breakdown.
+  const statusCounts: Record<string, number> = {};
+  for (const o of (statusRes.data ?? []) as { status: string }[]) {
+    statusCounts[o.status] = (statusCounts[o.status] ?? 0) + 1;
+  }
+
+  const orderCount = orderCountRes.count ?? 0;
+  const avgOrderValue = orderCount > 0 ? revenue / orderCount : 0;
+
   return {
     productCount: productCountRes.count ?? 0,
-    orderCount: orderCountRes.count ?? 0,
+    orderCount,
     customerCount: customerCountRes.count ?? 0,
     revenue,
     recentOrders: (recentOrdersRes.data ?? []) as OrderRow[],
@@ -77,6 +133,14 @@ async function getStats() {
     thisMonth: periodStats(monthRes.data),
     trend,
     trendPeak,
+    customerTrend: customerDays,
+    customerPeak: Math.max(...customerDays.map((d) => d.count), 1),
+    newCustomersToday: todayCustomersRes.count ?? 0,
+    newCustomersWeek: weekCustomersRes.count ?? 0,
+    newCustomersMonth: monthCustomersRes.count ?? 0,
+    topProducts,
+    avgOrderValue,
+    statusCounts,
   };
 }
 
@@ -97,11 +161,12 @@ export default async function AdminDashboard() {
     <div>
       <h2 className="text-lg font-semibold text-dark mb-6">Dashboard</h2>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <Card icon={TrendingUp} label="Revenue" value={`£${stats.revenue.toFixed(2)}`} />
         <Card icon={ShoppingCart} label="Orders" value={String(stats.orderCount)} />
-        <Card icon={Package} label="Products" value={String(stats.productCount)} />
+        <Card icon={Wallet} label="Avg order" value={`£${stats.avgOrderValue.toFixed(2)}`} />
         <Card icon={Users} label="Customers" value={String(stats.customerCount)} />
+        <Card icon={Package} label="Products" value={String(stats.productCount)} />
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -143,7 +208,40 @@ export default async function AdminDashboard() {
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-6">
+      <section className="mb-6 bg-white border border-[#e6e1d6] rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-dark">New customers — last 14 days</h3>
+          <span className="text-xs text-ink-muted">
+            {stats.newCustomersToday} today · {stats.newCustomersWeek} this week · {stats.newCustomersMonth} this month
+          </span>
+        </div>
+        <div className="flex items-end gap-1.5 h-24">
+          {stats.customerTrend.map((t, i) => {
+            const height = Math.max(4, Math.round((t.count / stats.customerPeak) * 100));
+            return (
+              <div
+                key={i}
+                className="flex-1 flex flex-col items-center justify-end gap-1.5 group"
+                title={`${t.day} — ${t.count} new`}
+              >
+                <div
+                  className={`w-full rounded-t-md transition-colors ${
+                    t.count > 0 ? "bg-green/70 group-hover:bg-green" : "bg-[#f0ede4]"
+                  }`}
+                  style={{ height: `${height}%` }}
+                />
+                {i % 3 === 0 || i === stats.customerTrend.length - 1 ? (
+                  <span className="text-[10px] text-ink-muted">{t.day}</span>
+                ) : (
+                  <span className="text-[10px] text-transparent select-none">·</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <section className="bg-white border border-[#e6e1d6] rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -200,7 +298,60 @@ export default async function AdminDashboard() {
             </div>
           )}
         </section>
+
+        <section className="bg-white border border-[#e6e1d6] rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-dark">Order status</h3>
+            <Link href="/admin/orders" className="text-xs text-brand hover:underline">View all</Link>
+          </div>
+          {Object.keys(stats.statusCounts).length === 0 ? (
+            <p className="text-sm text-ink-muted">No orders yet.</p>
+          ) : (
+            <ul className="space-y-2.5">
+              {Object.entries(stats.statusCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([status, count]) => (
+                  <li key={status} className="flex items-center justify-between">
+                    <StatusBadge status={status} />
+                    <span className="text-sm font-medium text-dark">{count}</span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </section>
       </div>
+
+      <section className="mt-6 bg-white border border-[#e6e1d6] rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Star className="w-4 h-4 text-gold" />
+            <h3 className="text-sm font-semibold text-dark">Top selling products — last 30 days</h3>
+          </div>
+          <Link href="/admin/products" className="text-xs text-brand hover:underline">View all</Link>
+        </div>
+        {stats.topProducts.length === 0 ? (
+          <p className="text-sm text-ink-muted">No sales yet — your bestsellers will show here.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-ink-muted text-xs">
+                <th className="pb-2 font-medium">Product</th>
+                <th className="pb-2 font-medium text-right">Units sold</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#e6e1d6]/50">
+              {stats.topProducts.map((p) => (
+                <tr key={p.name}>
+                  <td className="py-2.5 text-dark font-medium">
+                    <span className="mr-2">{p.emoji}</span>{p.name}
+                  </td>
+                  <td className="py-2.5 text-right text-dark">{p.qty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
       <section className="mt-6 bg-white border border-[#e6e1d6] rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
@@ -280,6 +431,7 @@ function StatusBadge({ status }: { status: string }) {
     "Out for delivery": "text-blue-700 bg-blue-50",
     Preparing: "text-amber-700 bg-amber-50",
     Cancelled: "text-red-600 bg-red-50",
+    Refunded: "text-purple-700 bg-purple-50",
   };
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${colors[status] ?? "text-ink-muted bg-[#f4f1ea]"}`}>

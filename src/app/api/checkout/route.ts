@@ -3,6 +3,8 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerUser } from "@/lib/auth";
 import { calculateShippingFee, parseWeightKg } from "@/lib/weight";
+import { notifyAdmins, getAdminEmails } from "@/lib/notify";
+import { sendAdminNewOrderEmail } from "@/lib/email";
 import type { Json } from "@/lib/supabase/types";
 
 type IncomingLine = { productId: string; optionId?: string | null; qty: number };
@@ -183,8 +185,34 @@ export async function POST(req: NextRequest) {
     actor: "system",
   });
 
+  // Notify all admins and email them so the team knows an order just landed.
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
+
+  try {
+    await notifyAdmins({
+      type: "new_order",
+      title: "New order received",
+      body: `${address.name} · £${(totalPence / 100).toFixed(2)}`,
+      link: `/admin/orders/${order.id}`,
+    });
+    const adminEmails = await getAdminEmails();
+    if (adminEmails.length > 0) {
+      await Promise.allSettled(
+        adminEmails.map((email) =>
+          sendAdminNewOrderEmail({
+            to: email,
+            orderId: order.id,
+            total: totalPence / 100,
+            customerName: address.name,
+            link: `${siteUrl}/admin/orders/${order.id}`,
+          }),
+        ),
+      );
+    }
+  } catch (err) {
+    console.error("checkout notification failed:", err);
+  }
 
   // Add delivery as its own line item when charged
   if (shippingFeePence > 0) {

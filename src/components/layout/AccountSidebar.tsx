@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package, MapPin, Heart, CreditCard, LogOut, User, Menu, Settings } from "lucide-react";
+import { Package, MapPin, Heart, CreditCard, LogOut, User, Menu, Settings, Bell } from "lucide-react";
 
 const items = [
   { label: "Overview", href: "/account", icon: User },
   { label: "Orders", href: "/account/orders", icon: Package },
+  { label: "Notifications", href: "/account/notifications", icon: Bell },
   { label: "Addresses", href: "/account/addresses", icon: MapPin },
   { label: "Wishlist", href: "/wishlist", icon: Heart },
   { label: "Payment methods", href: "/account/payment", icon: CreditCard },

@@ -64,6 +64,20 @@ async function findOrCreateUser(email: string): Promise<{ id: string; email: str
   if (error || !created) {
     throw new Error("Could not create user");
   }
+
+  // Let the team know a brand-new customer just signed up.
+  try {
+    const { notifyAdmins } = await import("@/lib/notify");
+    await notifyAdmins({
+      type: "new_customer",
+      title: "New customer signed up",
+      body: normalized,
+      link: `/admin/customers/${created.id}`,
+    });
+  } catch (err) {
+    console.error("new customer notification failed:", err);
+  }
+
   return { id: created.id, email: created.email ?? normalized, name: created.name };
 }
 
