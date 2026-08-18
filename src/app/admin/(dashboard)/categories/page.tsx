@@ -10,6 +10,7 @@ type Category = {
   emoji: string;
   bg_color: string;
   description: string;
+  weight_units: string[];
 };
 
 export default function AdminCategoriesPage() {
@@ -19,6 +20,8 @@ export default function AdminCategoriesPage() {
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [weightUnits, setWeightUnits] = useState<string[]>([]);
+  const [newUnit, setNewUnit] = useState("");
 
   useEffect(() => {
     loadCategories();
@@ -33,11 +36,15 @@ export default function AdminCategoriesPage() {
 
   function openCreate() {
     setEditItem(null);
+    setWeightUnits([]);
+    setNewUnit("");
     setModal("create");
   }
 
   function openEdit(cat: Category) {
     setEditItem(cat);
+    setWeightUnits(cat.weight_units ?? []);
+    setNewUnit("");
     setModal("edit");
   }
 
@@ -52,6 +59,7 @@ export default function AdminCategoriesPage() {
       emoji: (form.get("emoji") as string) || "📦",
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       description: (form.get("description") as string) || "",
+      weight_units: weightUnits,
     };
 
     if (modal === "edit" && editItem) {
@@ -100,15 +108,16 @@ export default function AdminCategoriesPage() {
             <tr className="text-left text-ink-muted text-xs border-b border-[#e6e1d6]">
               <th className="py-3 px-4 font-medium">Category</th>
               <th className="py-3 px-4 font-medium">Slug</th>
+              <th className="py-3 px-4 font-medium">Weight Units</th>
               <th className="py-3 px-4 font-medium">Description</th>
               <th className="py-3 px-4 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#e6e1d6]/50">
             {loading ? (
-              <tr><td colSpan={4} className="py-12 text-center text-sm text-ink-muted">Loading…</td></tr>
+            <tr><td colSpan={5} className="py-12 text-center text-sm text-ink-muted">Loading…</td></tr>
             ) : categories.length === 0 ? (
-              <tr><td colSpan={4} className="py-12 text-center text-sm text-ink-muted">No categories yet.</td></tr>
+            <tr><td colSpan={5} className="py-12 text-center text-sm text-ink-muted">No categories yet.</td></tr>
             ) : (
               categories.map((c) => (
                 <tr key={c.id} className="hover:bg-[#fafaf7]">
@@ -119,6 +128,17 @@ export default function AdminCategoriesPage() {
                     </div>
                   </td>
                   <td className="py-3 px-4 text-ink-soft font-mono text-xs">{c.slug}</td>
+                  <td className="py-3 px-4">
+                    <div className="flex flex-wrap gap-1">
+                      {(c.weight_units ?? []).length === 0 ? (
+                        <span className="text-ink-muted text-xs">—</span>
+                      ) : (
+                        c.weight_units.map((u) => (
+                          <span key={u} className="inline-block px-2 py-0.5 rounded-full bg-[#f4f1ea] text-[11px] text-ink-soft">{u}</span>
+                        ))
+                      )}
+                    </div>
+                  </td>
                   <td className="py-3 px-4 text-ink-soft truncate max-w-xs">{c.description || "—"}</td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
@@ -173,6 +193,54 @@ export default function AdminCategoriesPage() {
                   className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-none"
                 />
               </label>
+              <div className="block">
+                <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight / Size presets</span>
+                <span className="block text-[11px] text-ink-muted mb-2">
+                  These show as quick-select options when adding products in this category.
+                </span>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {weightUnits.map((u) => (
+                    <span key={u} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#f4f1ea] text-xs text-dark">
+                      {u}
+                      <button type="button" onClick={() => setWeightUnits(weightUnits.filter((x) => x !== u))} className="text-ink-muted hover:text-red">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                  {weightUnits.length === 0 && <span className="text-xs text-ink-muted">No presets yet.</span>}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    value={newUnit}
+                    onChange={(e) => setNewUnit(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const val = newUnit.trim();
+                        if (val && !weightUnits.includes(val)) {
+                          setWeightUnits([...weightUnits, val]);
+                          setNewUnit("");
+                        }
+                      }
+                    }}
+                    placeholder="e.g. Half bag, 5 kg, Paint"
+                    className="flex-1 h-9 px-3 border border-[#e6e1d6] rounded-xl text-xs text-dark bg-white focus:outline-none focus:border-dark"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const val = newUnit.trim();
+                      if (val && !weightUnits.includes(val)) {
+                        setWeightUnits([...weightUnits, val]);
+                        setNewUnit("");
+                      }
+                    }}
+                    className="h-9 px-3 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea] transition-colors shrink-0"
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
               <div className="flex gap-3 justify-end pt-2">
                 <button
                   type="button"

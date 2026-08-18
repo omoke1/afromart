@@ -18,6 +18,7 @@ export interface Database {
           emoji: string;
           bg_color: string;
           description: string;
+          weight_units: string[];
           created_at: string;
         };
         Insert: {
@@ -27,6 +28,7 @@ export interface Database {
           emoji: string;
           bg_color: string;
           description: string;
+          weight_units?: string[];
           created_at?: string;
         };
         Update: {
@@ -36,6 +38,7 @@ export interface Database {
           emoji?: string;
           bg_color?: string;
           description?: string;
+          weight_units?: string[];
           created_at?: string;
         };
         Relationships: [];

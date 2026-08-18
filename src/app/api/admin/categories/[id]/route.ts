@@ -14,6 +14,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       emoji: body.emoji,
       bg_color: body.bg_color,
       description: body.description,
+      weight_units: body.weight_units ?? [],
     }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });

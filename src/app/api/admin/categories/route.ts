@@ -25,6 +25,7 @@ export async function POST(req: Request) {
       emoji: body.emoji,
       bg_color: body.bg_color,
       description: body.description,
+      weight_units: body.weight_units ?? [],
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true }, { status: 201 });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, X, Plus, Trash2, Clipboard, ImageUp } from "lucide-react";
 import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
-type Category = { id: string; name: string };
+type Category = { id: string; name: string; weight_units: string[] };
 
 type OptionRow = {
   id?: string;
@@ -35,7 +35,10 @@ export default function ProductForm({ mode, product }: Props) {
   );
   const [relatedIds, setRelatedIds] = useState<string[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(mode === "edit");
+  const [selectedCategoryId, setSelectedCategoryId] = useState((product?.category_id as string) ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const presetUnits = categories.find((c) => c.id === selectedCategoryId)?.weight_units ?? [];
 
   useEffect(() => {
     fetch("/api/admin/categories")
@@ -336,21 +339,29 @@ export default function ProductForm({ mode, product }: Props) {
           slugDefault={(product?.slug as string) ?? ""}
         />
 
-        <SelectField
-          label="Category"
-          name="category_id"
-          defaultValue={product?.category_id as string}
-          required
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
-        />
+        <label className="block">
+          <span className="block text-xs font-medium text-ink-soft mb-1.5">Category</span>
+          <select
+            name="category_id"
+            required
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+          >
+            <option value="" disabled>Select category…</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </label>
 
         {/* Options */}
         <div className="border border-[#e6e1d6] rounded-xl p-4 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <span className="block text-xs font-semibold text-dark">Options (sizes / weights)</span>
+              <span className="block text-xs font-semibold text-dark">Pricing &amp; stock</span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                The first option is the product&apos;s default. Customers pick from these on the shop.
+                Each row is a size / weight variant customers can choose. The first row is the default.
               </span>
             </div>
             <button
@@ -359,9 +370,29 @@ export default function ProductForm({ mode, product }: Props) {
               className="flex items-center gap-1 h-8 px-3 rounded-full border border-[#e6e1d6] text-xs font-semibold text-dark hover:bg-[#f4f1ea] transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add option
+              Add size
             </button>
           </div>
+
+          {presetUnits.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <span className="text-[11px] text-ink-muted leading-6">Quick-fill weight:</span>
+              {presetUnits.map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => {
+                    const emptyIdx = optionRows.findIndex((r) => !r.weight.trim());
+                    const targetIdx = emptyIdx >= 0 ? emptyIdx : optionRows.length - 1;
+                    updateRow(targetIdx, "weight", u);
+                  }}
+                  className="h-6 px-2.5 rounded-full bg-[#f4f1ea] text-[11px] text-dark font-medium hover:bg-dark hover:text-white transition-colors"
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          )}
 
           {optionsLoading ? (
             <p className="text-sm text-ink-muted py-2">Loading options…</p>
@@ -383,12 +414,12 @@ export default function ProductForm({ mode, product }: Props) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight</span>
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight / size</span>
                     <input
                       type="text"
                       value={row.weight}
                       onChange={(e) => updateRow(i, "weight", e.target.value)}
-                      placeholder="e.g. 1 kg"
+                      placeholder="e.g. 1 kg, Half bag"
                       className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
                     />
                   </label>
