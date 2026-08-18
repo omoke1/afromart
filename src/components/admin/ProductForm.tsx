@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X, Plus, Trash2 } from "lucide-react";
+import { Upload, X, Plus, Trash2, Clipboard, ImageUp } from "lucide-react";
 import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 type Category = { id: string; name: string };
@@ -29,6 +29,7 @@ export default function ProductForm({ mode, product }: Props) {
   const [imageUrl, setImageUrl] = useState((product?.image_url as string) ?? "");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [dragging, setDragging] = useState(false);
   const [optionRows, setOptionRows] = useState<OptionRow[]>(() =>
     mode === "create" ? [emptyOption()] : []
   );
@@ -77,6 +78,25 @@ export default function ProductForm({ mode, product }: Props) {
       });
   }, [mode, product]);
 
+  const handleGlobalPaste = useCallback(
+    (e: ClipboardEvent) => {
+      const active = document.activeElement;
+      if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+      const file = e.clipboardData?.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        e.preventDefault();
+        uploadFile(file);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  useEffect(() => {
+    document.addEventListener("paste", handleGlobalPaste);
+    return () => document.removeEventListener("paste", handleGlobalPaste);
+  }, [handleGlobalPaste]);
+
   const updateRow = (index: number, field: keyof OptionRow, value: string) =>
     setOptionRows((prev) => prev.map((r, idx) => (idx === index ? { ...r, [field]: value } : r)));
 
@@ -85,9 +105,15 @@ export default function ProductForm({ mode, product }: Props) {
   const removeRow = (index: number) =>
     setOptionRows((prev) => prev.filter((_, idx) => idx !== index));
 
-  async function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function uploadFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      setError("Please paste or drop an image file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be under 5 MB.");
+      return;
+    }
     setUploading(true);
     setError("");
 
@@ -105,6 +131,47 @@ export default function ProductForm({ mode, product }: Props) {
 
     setImageUrl(data.url);
     setUploading(false);
+  }
+
+  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const file = e.clipboardData.files?.[0];
+    if (file) {
+      uploadFile(file);
+      return;
+    }
+    // Fallback: some browsers put raw image data in items instead of files
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        const blob = items[i].getAsFile();
+        if (blob) {
+          uploadFile(blob);
+          return;
+        }
+      }
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -207,8 +274,17 @@ export default function ProductForm({ mode, product }: Props) {
         <label className="block">
           <span className="block text-xs font-medium text-ink-soft mb-1.5">Product image</span>
           <div
+            onPaste={handlePaste}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            tabIndex={0}
             onClick={() => fileRef.current?.click()}
-            className="relative w-full h-48 border-2 border-dashed border-[#e6e1d6] rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-dark transition-colors overflow-hidden bg-white"
+            className={`relative w-full h-48 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors overflow-hidden bg-white ${
+              dragging
+                ? "border-dark bg-[#f4f1ea] scale-[1.01]"
+                : "border-[#e6e1d6] hover:border-dark"
+            }`}
           >
             {imageUrl ? (
               <>
@@ -230,9 +306,17 @@ export default function ProductForm({ mode, product }: Props) {
               <>
                 <Upload className="w-8 h-8 text-ink-muted mb-2" />
                 <span className="text-sm text-ink-muted">
-                  {uploading ? "Uploading…" : "Click to upload image"}
+                  {uploading
+                    ? "Uploading…"
+                    : dragging
+                      ? "Drop image here"
+                      : "Click, paste, or drag an image"}
                 </span>
                 <span className="text-xs text-ink-muted mt-1">PNG, JPG, WebP up to 5 MB</span>
+                <span className="flex items-center gap-3 mt-2 text-[11px] text-ink-muted">
+                  <span className="flex items-center gap-1"><Clipboard className="w-3 h-3" /> Ctrl+V</span>
+                  <span className="flex items-center gap-1"><ImageUp className="w-3 h-3" /> Drag & drop</span>
+                </span>
               </>
             )}
           </div>
