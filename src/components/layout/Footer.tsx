@@ -52,7 +52,7 @@ export default function Footer() {
               <span className="font-semibold text-lg tracking-tight text-dark">AfroMart</span>
             </Link>
             <p className="text-sm text-ink-soft leading-relaxed max-w-sm">
-              Authentic African groceries, delivered across the UK in 24–48 hours. A taste of home, on time.
+              Authentic African groceries, delivered across the UK in 6–7 days. A taste of home, on time.
             </p>
 
             <form className="mt-6 flex max-w-sm rounded-full border border-line bg-white pl-5 pr-1 h-12 items-center">

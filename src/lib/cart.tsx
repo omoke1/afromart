@@ -27,8 +27,8 @@ type CartContextValue = {
   drawerOpen: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
-  focusedProduct?: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string }[] } | null;
-  openProductDrawer?: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string }[] }) => void;
+  focusedProduct?: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[] } | null;
+  openProductDrawer?: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[] }) => void;
   lastAdded: { productId: string; at: number } | null;
 };
 
@@ -44,7 +44,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     id: string;
     name?: string;
     img?: string | null;
-    options?: { id: string; label: string; price?: number | string; oldPrice?: number | string }[];
+    options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[];
   } | null>(null);
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
   const [userId, setUserId] = useState<string | null>(null);
@@ -214,6 +214,7 @@ export type CartProductInfo = {
   weight: string;
   category: string;
   optionId: string | null;
+  stock: number;
 };
 
 export type CartLineDisplay = { key: string; product: CartProductInfo; qty: number };
@@ -236,7 +237,7 @@ export function useCartLines(): CartLineDisplay[] {
     supabase
       .from("products")
       .select(
-        "id, name, price, bg_color, emoji, weight, categories(name), product_options(id, weight, price)"
+        "id, name, price, bg_color, emoji, weight, stock, categories(name), product_options(id, weight, price, stock)"
       )
       .in("id", idArr)
       .then(({ data }) => {
@@ -256,14 +257,16 @@ export function useCartLines(): CartLineDisplay[] {
             price: Number(p.price),
             weight: p.weight ?? "",
             optionId: null,
+            stock: Number(p.stock ?? 0),
           });
-          const opts = (p.product_options as unknown as { id: string; weight: string; price: number }[] | null) ?? [];
+          const opts = (p.product_options as unknown as { id: string; weight: string; price: number; stock: number }[] | null) ?? [];
           for (const opt of opts) {
             map.set(lineKey(p.id, opt.id), {
               ...base,
               price: Number(opt.price),
               weight: opt.weight,
               optionId: opt.id,
+              stock: Number(opt.stock ?? 0),
             });
           }
         }

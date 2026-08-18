@@ -49,7 +49,7 @@ export default async function OrderSuccessPage({
           Thank you for shopping with AfroMart
         </h1>
         <p className="mt-4 text-ink-soft">
-          We&apos;ve sent a confirmation email with your receipt and tracking details. Your order will arrive in 24–48 hours.
+          We&apos;ve sent a confirmation email with your receipt and tracking details. Your order will arrive in 6–7 days.
         </p>
 
         <div className="mt-8 border border-line rounded-2xl p-6 text-left">
@@ -68,7 +68,7 @@ export default async function OrderSuccessPage({
               <dt className="text-ink-muted text-xs uppercase tracking-wider">Delivery</dt>
               <dd className="text-dark font-medium mt-1 flex items-center gap-2">
                 <Truck className="w-4 h-4" />
-                24–48h UK delivery
+                6–7 day UK delivery
               </dd>
             </div>
             <div>

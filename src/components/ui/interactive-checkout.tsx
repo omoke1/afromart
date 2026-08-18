@@ -431,7 +431,7 @@ export function InteractiveCheckout() {
                             </Button>
 
                             <p className="mt-3 text-xs text-ink-muted text-center">
-                                Secure checkout · 24–48h UK delivery
+                                Secure checkout · 6–7 day UK delivery
                             </p>
                         </motion.div>
                     </motion.aside>

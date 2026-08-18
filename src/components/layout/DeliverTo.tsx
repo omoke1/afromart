@@ -140,7 +140,7 @@ export default function DeliverTo({ value, onChange, variant = "pill" }: Props) 
           </div>
 
           <p className="text-[11px] text-ink-muted mt-4">
-            We deliver across the UK in 24–48 hours.
+            We deliver across the UK in 6–7 days.
           </p>
         </div>
       )}

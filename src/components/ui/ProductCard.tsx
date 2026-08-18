@@ -50,6 +50,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
       ? options
       : [{ id: "", weight: product.weight, price: product.price, stock: product.stock ?? 1 }];
   const hasVariants = options.length > 1;
+  const totalStock = displayOptions.reduce((s, o) => s + o.stock, 0);
   const minPrice = Math.min(...displayOptions.map((o) => o.price));
   const { currency: preferred } = usePreferredCurrency('GBP');
   const { convert, base } = useExchangeRates();
@@ -92,19 +93,24 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (totalStock === 0) return;
               if (openProductDrawer) {
                 openProductDrawer({
                   id: product.id,
                   name: product.name,
                   img: product.image_url ?? null,
-                  options: displayOptions.map((o) => ({ id: o.id, label: o.weight, price: o.price, oldPrice: product.compare_at ?? undefined })),
+                  options: displayOptions.map((o) => ({ id: o.id, label: o.weight, price: o.price, oldPrice: product.compare_at ?? undefined, stock: o.stock })),
                 });
               } else {
                 add(product.id, 1, null);
               }
             }}
             aria-label="Open product options"
-            className="absolute bottom-3 right-3 z-10 w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center shadow-sm"
+            className={`absolute bottom-3 right-3 z-10 w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-colors ${
+              totalStock === 0
+                ? "bg-line text-ink-muted cursor-not-allowed"
+                : "bg-brand text-white"
+            }`}
           >
             <span className="text-2xl leading-none">+</span>
           </button>
@@ -140,7 +146,9 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
         </div>
 
         <div className="mt-4">
-          {qty === 0 ? (
+          {totalStock === 0 ? (
+            <span className="inline-block text-xs font-medium text-red px-3 py-1.5 rounded-full bg-red/10">Out of stock</span>
+          ) : qty === 0 ? (
             <QuickAdd product={product} displayOptions={displayOptions} />
           ) : (
             <div className="w-full border border-line rounded-full py-1 px-1.5 flex items-center justify-between">
@@ -154,8 +162,9 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
               <span className="text-sm font-semibold text-dark">{qty}</span>
               <button
                 onClick={() => setLineQty(firstLineKey(productLines), qty + 1)}
+                disabled={qty >= totalStock}
                 aria-label="Increase quantity"
-                className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center hover:bg-brand-hover transition-colors"
+                className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center hover:bg-brand-hover transition-colors disabled:bg-line disabled:text-ink-muted"
               >
                 <Plus className="w-4 h-4" />
               </button>

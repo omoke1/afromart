@@ -155,6 +155,7 @@ export default function CartDrawer() {
                       <div>
                         <div className="text-sm font-medium text-dark">{opt.label}</div>
                         {opt.price && <div className="text-xs text-ink-muted">{typeof opt.price === 'number' ? `£${Number(opt.price).toFixed(2)}` : opt.price}</div>}
+                        {opt.stock === 0 && <div className="text-[11px] text-red font-medium">Out of stock</div>}
                       </div>
                     </div>
                     <div>
@@ -162,7 +163,8 @@ export default function CartDrawer() {
                         onClick={() => {
                           add(focusedProduct.id, 1, opt.id || null);
                         }}
-                        className="w-10 h-10 rounded-full bg-gold text-white flex items-center justify-center"
+                        disabled={opt.stock === 0}
+                        className="w-10 h-10 rounded-full bg-gold text-white flex items-center justify-center disabled:bg-line disabled:text-ink-muted disabled:cursor-not-allowed"
                       >
                         +
                       </button>
@@ -223,8 +225,9 @@ export default function CartDrawer() {
                         <span className="w-7 text-center font-semibold text-dark text-xs">{qty}</span>
                         <button
                           onClick={() => setLineQty(key, qty + 1)}
+                          disabled={qty >= product.stock}
                           aria-label="Increase quantity"
-                          className="w-6 h-6 rounded-full hover:bg-surface text-dark flex items-center justify-center"
+                          className="w-6 h-6 rounded-full hover:bg-surface text-dark flex items-center justify-center disabled:text-ink-muted disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3 h-3" />
                         </button>

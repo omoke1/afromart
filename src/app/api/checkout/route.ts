@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
       price_data: {
         currency: "gbp",
         unit_amount: shippingFeePence,
-        product_data: { name: "Delivery (24–48h UK)" },
+        product_data: { name: "Delivery (6–7 day UK)" },
       },
     });
   }

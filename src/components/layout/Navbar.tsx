@@ -118,8 +118,8 @@ export default function Navbar() {
         <div className="hidden xl:flex items-center gap-2 text-white shrink-0">
           <span className="text-gold text-base">⚡</span>
           <div className="text-xs leading-tight">
-            <p className="text-white/80">Order now, get it in</p>
-            <p className="font-semibold text-gold">24–48 hours</p>
+            <p className="text-white/80">Order now, delivered in</p>
+            <p className="font-semibold text-gold">6–7 days</p>
           </div>
         </div>
 
@@ -257,7 +257,7 @@ export default function Navbar() {
 
         {/* Drawer footer */}
         <div className="px-5 py-4 border-t border-line shrink-0">
-          <p className="text-xs text-ink-muted">Delivering across the UK · 24–48h</p>
+          <p className="text-xs text-ink-muted">Delivering across the UK · 6–7 days</p>
         </div>
       </aside>
     </header>

@@ -11,7 +11,7 @@ const groups = [
   {
     title: "Delivery",
     items: [
-      { q: "Where do you deliver?", a: "Anywhere in the UK — England, Scotland, Wales and Northern Ireland. We use tracked 24–48h courier services." },
+      { q: "Where do you deliver?", a: "Anywhere in the UK — England, Scotland, Wales and Northern Ireland. We use tracked courier services with 6–7 day delivery." },
       { q: "How much is delivery?", a: "£4.99 standard. Free on orders over £40." },
       { q: "Can I get same-day delivery?", a: "Same-day is available in Greater London for orders placed before 11am." },
     ],

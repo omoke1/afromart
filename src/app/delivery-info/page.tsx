@@ -12,8 +12,8 @@ export default function DeliveryInfoPage() {
         {
           heading: "Where we deliver",
           paragraphs: [
-            "We deliver across the whole of the United Kingdom — England, Scotland, Wales and Northern Ireland — using tracked courier services. Most orders reach you within 24–48 hours of dispatch.",
-            "Remote postcodes (Scottish Highlands, Northern Ireland and certain offshore islands) may take 48–72 hours. We'll show you the accurate delivery window for your postcode at checkout before you pay.",
+            "We deliver across the whole of the United Kingdom — England, Scotland, Wales and Northern Ireland — using tracked courier services. Most orders reach you within 6–7 days of dispatch.",
+            "Remote postcodes (Scottish Highlands, Northern Ireland and certain offshore islands) may take 7–10 days. We'll show you the accurate delivery window for your postcode at checkout before you pay.",
           ],
         },
         {

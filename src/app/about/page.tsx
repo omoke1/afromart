@@ -13,7 +13,7 @@ const values = [
 
 const milestones = [
   { year: "2024", text: "AfroMart founded in London by two Nigerian sisters tired of empty shelves." },
-  { year: "2025", text: "First fulfilment hub opened in East London. 24–48h UK-wide delivery launched." },
+  { year: "2025", text: "First fulfilment hub opened in East London. 6–7 day UK-wide delivery launched." },
   { year: "2026", text: "Crossed 10,000 households served and partnered with 30+ African brands." },
 ];
 

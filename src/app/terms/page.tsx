@@ -71,7 +71,7 @@ export default function TermsPage() {
         {
           heading: "Delivery",
           paragraphs: [
-            "We deliver across the United Kingdom using tracked third-party couriers. Estimated delivery times are 24–48 hours from dispatch for most postcodes, and 48–72 hours for remote areas including Scottish Highlands, Northern Ireland, and certain offshore postcodes.",
+            "We deliver across the United Kingdom using tracked third-party couriers. Estimated delivery times are 6–7 days from dispatch for most postcodes, and 7–10 days for remote areas including Scottish Highlands, Northern Ireland, and certain offshore postcodes.",
             "Delivery is free on orders over £40. Orders under £40 incur a £4.99 delivery fee. Any additional shipping options (e.g. express or timed delivery) are shown at checkout with applicable charges.",
             "Risk of loss or damage to products passes to you upon delivery. You must inspect your delivery promptly and report any issues in accordance with our Returns Policy.",
             "We are not liable for delays caused by events outside our reasonable control, including extreme weather, courier strikes, or public health emergencies.",

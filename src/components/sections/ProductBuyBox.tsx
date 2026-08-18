@@ -116,9 +116,10 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
           </button>
           <span className="w-10 text-center font-semibold text-dark">{qty}</span>
           <button
-            onClick={() => setQty((q) => q + 1)}
+            onClick={() => setQty((q) => Math.min(unitStock, q + 1))}
+            disabled={qty >= unitStock}
             aria-label="Increase"
-            className="w-8 h-8 rounded-full hover:bg-surface text-dark flex items-center justify-center"
+            className="w-8 h-8 rounded-full hover:bg-surface text-dark flex items-center justify-center disabled:text-ink-muted disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
           </button>
