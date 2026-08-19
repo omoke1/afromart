@@ -181,7 +181,7 @@ export default function AdminProductsPage() {
                     <div className="flex items-center gap-3">
                       {p.image_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.image_url} alt="" className="w-8 h-8 rounded-lg object-cover bg-[#f4f1ea]" />
+                        <img src={p.image_url} alt="" className="w-8 h-8 rounded-lg object-contain bg-[#f4f1ea]" />
                       ) : (
                         <span className="text-lg">{p.emoji}</span>
                       )}

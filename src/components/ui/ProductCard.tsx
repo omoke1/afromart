@@ -81,7 +81,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
             <img
               src={product.image_url}
               alt={product.name}
-              className="w-full h-full object-contain p-3 transition-transform duration-500 ease-out group-hover:scale-105"
+              className="w-full h-full object-contain p-1 transition-transform duration-500 ease-out group-hover:scale-105"
             />
           ) : (
             <span className="transition-transform duration-500 ease-out group-hover:scale-110">

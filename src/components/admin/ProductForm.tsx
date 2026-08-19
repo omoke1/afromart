@@ -292,7 +292,7 @@ export default function ProductForm({ mode, product }: Props) {
             {imageUrl ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={imageUrl} alt="Product" className="w-full h-full object-contain p-2" />
+                <img src={imageUrl} alt="Product" className="w-full h-full object-contain" />
                 <button
                   type="button"
                   onClick={(e) => {

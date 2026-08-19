@@ -198,11 +198,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           >
             {displayProduct.image_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={displayProduct.image_url}
-                alt={displayProduct.name}
-                className="w-full h-full object-contain p-6"
-              />
+                <img
+                  src={displayProduct.image_url}
+                  alt={displayProduct.name}
+                  className="w-full h-full object-contain p-2"
+                />
             ) : (
               displayProduct.emoji
             )}

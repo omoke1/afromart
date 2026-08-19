@@ -169,7 +169,7 @@ export default function AnimatedDropdown({
                     <div className="flex items-center gap-3 min-w-0">
                       {item.imgSrc ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={item.imgSrc} alt={item.imgAlt ?? item.label} className="w-9 h-9 rounded-md object-cover" />
+                        <img src={item.imgSrc} alt={item.imgAlt ?? item.label} className="w-9 h-9 rounded-md object-contain" />
                       ) : (
                         <div className="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center text-lg text-ink-muted">
                           {item.label?.slice(0, 1)}
