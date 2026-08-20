@@ -25,7 +25,7 @@ export interface Database {
           id?: string;
           name: string;
           slug: string;
-          emoji: string;
+          emoji?: string;
           bg_color: string;
           description: string;
           weight_units?: string[];
@@ -43,11 +43,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      subcategories: {
+        Row: {
+          id: string;
+          category_id: string;
+          name: string;
+          slug: string;
+          emoji: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          category_id: string;
+          name: string;
+          slug: string;
+          emoji?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          category_id?: string;
+          name?: string;
+          slug?: string;
+          emoji?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       products: {
         Row: {
           id: string;
           name: string;
           category_id: string;
+          subcategory_id: string | null;
           weight: string;
           price: number;
           compare_at: number | null;
@@ -71,6 +102,7 @@ export interface Database {
           id?: string;
           name: string;
           category_id: string;
+          subcategory_id?: string | null;
           weight: string;
           price: number;
           compare_at?: number | null;
@@ -94,6 +126,7 @@ export interface Database {
           id?: string;
           name?: string;
           category_id?: string;
+          subcategory_id?: string | null;
           weight?: string;
           price?: number;
           compare_at?: number | null;

@@ -6,6 +6,7 @@ import { Upload, X, Plus, Trash2, Clipboard, ImageUp } from "lucide-react";
 import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
 type Category = { id: string; name: string; weight_units: string[] };
+type Subcategory = { id: string; category_id: string; name: string; slug: string; emoji: string; position: number };
 
 type OptionRow = {
   id?: string;
@@ -36,6 +37,8 @@ export default function ProductForm({ mode, product }: Props) {
   const [relatedIds, setRelatedIds] = useState<string[]>([]);
   const [optionsLoading, setOptionsLoading] = useState(mode === "edit");
   const [selectedCategoryId, setSelectedCategoryId] = useState((product?.category_id as string) ?? "");
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState((product?.subcategory_id as string) ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const presetUnits = categories.find((c) => c.id === selectedCategoryId)?.weight_units ?? [];
@@ -47,6 +50,15 @@ export default function ProductForm({ mode, product }: Props) {
         if (data.categories) setCategories(data.categories);
       });
   }, []);
+
+  useEffect(() => {
+    if (!selectedCategoryId) { setSubcategories([]); return; }
+    fetch(`/api/admin/subcategories?category_id=${selectedCategoryId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setSubcategories(data.subcategories ?? []);
+      });
+  }, [selectedCategoryId]);
 
   useEffect(() => {
     if (mode === "create" || !product) return;
@@ -201,6 +213,7 @@ export default function ProductForm({ mode, product }: Props) {
     const data = {
       name: form.get("name") as string,
       category_id: form.get("category_id") as string,
+      subcategory_id: (form.get("subcategory_id") as string) || null,
       weight: first.weight,
       price: first.price,
       compare_at: first.compare_at,
@@ -345,7 +358,7 @@ export default function ProductForm({ mode, product }: Props) {
             name="category_id"
             required
             value={selectedCategoryId}
-            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            onChange={(e) => { setSelectedCategoryId(e.target.value); setSelectedSubcategoryId(""); }}
             className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
           >
             <option value="" disabled>Select category…</option>
@@ -354,6 +367,23 @@ export default function ProductForm({ mode, product }: Props) {
             ))}
           </select>
         </label>
+
+        {subcategories.length > 0 && (
+          <label className="block">
+            <span className="block text-xs font-medium text-ink-soft mb-1.5">Subcategory</span>
+            <select
+              name="subcategory_id"
+              value={selectedSubcategoryId}
+              onChange={(e) => setSelectedSubcategoryId(e.target.value)}
+              className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+            >
+              <option value="">None</option>
+              {subcategories.map((s) => (
+                <option key={s.id} value={s.id}>{s.emoji} {s.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {/* Options */}
         <div className="border border-[#e6e1d6] rounded-xl p-4 space-y-4">

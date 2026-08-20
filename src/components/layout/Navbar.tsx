@@ -216,14 +216,14 @@ export default function Navbar() {
         <nav className="flex-1 overflow-y-auto py-4">
           <p className="px-5 mb-2 text-[11px] tracking-[0.18em] uppercase text-ink-muted">Shop by Department</p>
           {[
-            { label: "All Products", href: "/shop", emoji: "🛒" },
-            { label: "Tubers & Grains", href: "/shop?category=tubers-grains", emoji: "🍠" },
-            { label: "Protein", href: "/shop?category=protein", emoji: "🐟" },
-            { label: "Cooking Essentials", href: "/shop?category=cooking-essentials", emoji: "🫙" },
-            { label: "Spices & Seasonings", href: "/shop?category=spices", emoji: "🌶️" },
-            { label: "Organic Foods", href: "/shop?category=organic", emoji: "🍯" },
-            { label: "Snacks & Drinks", href: "/shop?category=snacks", emoji: "🥤" },
-            { label: "Household", href: "/shop?category=household", emoji: "🧻" },
+            { label: "All Products", href: "/shop" },
+            { label: "Tubers & Grains", href: "/shop?category=tubers-grains" },
+            { label: "Protein", href: "/shop?category=protein" },
+            { label: "Cooking Essentials", href: "/shop?category=cooking-essentials" },
+            { label: "Spices & Seasonings", href: "/shop?category=spices" },
+            { label: "Organic Foods", href: "/shop?category=organic" },
+            { label: "Snacks & Drinks", href: "/shop?category=snacks" },
+            { label: "Household", href: "/shop?category=household" },
           ].map((item) => (
             <Link
               key={item.label}
@@ -231,7 +231,6 @@ export default function Navbar() {
               onClick={() => setMenuOpen(false)}
               className="flex items-center gap-3 px-5 py-3 text-sm font-medium text-ink hover:bg-surface transition-colors"
             >
-              <span className="text-lg">{item.emoji}</span>
               {item.label}
             </Link>
           ))}

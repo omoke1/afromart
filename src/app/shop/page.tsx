@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, LayoutGrid, Store } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import CategoryBar from "@/components/layout/CategoryBar";
 import Footer from "@/components/layout/Footer";
@@ -17,6 +17,7 @@ type DisplayProduct = {
   name: string;
   category: string;
   category_slug: string;
+  subcategory_slug: string | null;
   price: number;
   compare_at: number | null;
   emoji: string;
@@ -29,6 +30,7 @@ type DisplayProduct = {
 };
 
 type DisplayCategory = {
+  id: string;
   name: string;
   slug: string;
   emoji: string;
@@ -37,30 +39,48 @@ type DisplayCategory = {
   count: number;
 };
 
+type DisplaySubcategory = {
+  id: string;
+  category_id: string;
+  name: string;
+  slug: string;
+  emoji: string;
+  position: number;
+};
+
 function ShopInner() {
   const searchParams = useSearchParams();
   const queryCategory = searchParams.get("category") ?? "all";
+  const querySubcategory = searchParams.get("subcategory") ?? "";
 
   const [active, setActive] = useState<string>(queryCategory);
+  const [activeSub, setActiveSub] = useState<string>(querySubcategory);
   const [sort, setSort] = useState<SortKey>("featured");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [displayProducts, setDisplayProducts] = useState<DisplayProduct[]>([]);
   const [displayCategories, setDisplayCategories] = useState<DisplayCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<DisplaySubcategory[]>([]);
 
   useEffect(() => {
     const supabase = createClient();
     async function load() {
       const catRaw = await supabase.from("categories").select("*").order("name");
       const categories = catRaw.data as { id: string; name: string; slug: string; emoji: string; bg_color: string; description: string }[] | null;
+      const subcatRaw = await supabase.from("subcategories").select("*").order("position");
+      const subcatData = (subcatRaw.data ?? []) as { id: string; category_id: string; name: string; slug: string; emoji: string; position: number }[];
       const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug), product_options(id, weight, price, stock)").eq("is_active", true).order("name");
-      const products = prodRaw.data as { id: string; name: string; category_id: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string }; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
+      const products = prodRaw.data as { id: string; name: string; category_id: string; subcategory_id: string | null; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string }; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
 
       if (!categories || !products) return;
 
       const catMap = new Map(categories.map((c) => [c.id, c]));
+      const subMap = new Map(subcatData.map((s) => [s.id, s]));
+
+      setSubcategories(subcatData);
 
       setDisplayCategories(
         categories.map((c) => ({
+          id: c.id,
           name: c.name,
           slug: c.slug,
           emoji: c.emoji,
@@ -73,11 +93,13 @@ function ShopInner() {
       setDisplayProducts(
         products.map((p) => {
           const cat = catMap.get(p.category_id);
+          const sub = p.subcategory_id ? subMap.get(p.subcategory_id) : null;
           return {
             id: p.id,
             name: p.name,
             category: cat?.name ?? "",
             category_slug: cat?.slug ?? "",
+            subcategory_slug: sub?.slug ?? null,
             price: Number(p.price),
             compare_at: p.compare_at ? Number(p.compare_at) : null,
             emoji: p.emoji,
@@ -96,11 +118,22 @@ function ShopInner() {
     load();
   }, []);
 
+  const activeCategorySubs = useMemo(
+    () => (active === "all" ? [] : subcategories.filter((s) => {
+      const cat = displayCategories.find((c) => c.slug === active);
+      return cat && s.category_id === cat.id;
+    })),
+    [active, subcategories, displayCategories]
+  );
+
   const visible = useMemo(() => {
-    const filtered =
+    let filtered =
       active === "all"
         ? displayProducts
         : displayProducts.filter((p) => p.category_slug === active);
+    if (activeSub) {
+      filtered = filtered.filter((p) => p.subcategory_slug === activeSub);
+    }
     const list = [...filtered];
     switch (sort) {
       case "featured":
@@ -117,7 +150,7 @@ function ShopInner() {
         break;
     }
     return list;
-  }, [active, sort, displayProducts]);
+  }, [active, activeSub, sort, displayProducts]);
 
   const activeCategory = displayCategories.find((c) => c.slug === active);
 
@@ -127,26 +160,23 @@ function ShopInner() {
       <CategoryBar />
 
       <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 lg:pt-12 pb-20 flex-1">
-        <nav className="text-sm text-ink-muted mb-4">
-          <Link href="/" className="hover:text-dark">Home</Link>
-          <span className="mx-2">/</span>
-          <span className="text-dark">Shop{activeCategory ? ` · ${activeCategory.name}` : ""}</span>
-        </nav>
-
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
-          <div>
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">All products</p>
-            <h1 className="text-3xl lg:text-4xl font-semibold text-dark tracking-tight">
-              {activeCategory ? activeCategory.name : "The full shop"}
-            </h1>
-            {activeCategory && (
-              <p className="mt-2 text-ink-soft text-sm max-w-xl">{activeCategory.description}</p>
-            )}
+        {/* Row 1: Subheading view tabs & sorting/filtering */}
+        <div className="flex items-center justify-between border-b border-line pb-4 mb-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 text-sm font-medium text-ink transition-colors select-none">
+              <LayoutGrid className="w-4 h-4 text-ink-soft" />
+              <span>Categories</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm font-semibold text-gold transition-colors select-none">
+              <Store className="w-4 h-4" />
+              <span>Products</span>
+            </div>
           </div>
+
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileFiltersOpen(true)}
-              className="lg:hidden flex items-center gap-2 border border-line rounded-full px-4 py-2 text-sm font-medium text-dark"
+              className="lg:hidden flex items-center gap-2 border border-line rounded-full px-4 py-2 text-sm font-medium text-dark bg-white hover:bg-surface cursor-pointer"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
@@ -154,7 +184,7 @@ function ShopInner() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              className="border border-line rounded-full px-4 py-2 text-sm font-medium text-dark bg-white"
+              className="border border-line rounded-full px-4 py-2 text-sm font-medium text-dark bg-white hover:bg-surface cursor-pointer focus:outline-none"
             >
               <option value="featured">Sort: Featured</option>
               <option value="price-asc">Price: low to high</option>
@@ -164,22 +194,74 @@ function ShopInner() {
           </div>
         </div>
 
+        {/* Row 2: Horizontal Scrollable Category Bar */}
+        <div className="border-b border-line pb-3 mb-8">
+          <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap py-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <button
+              onClick={() => { setActive("all"); setActiveSub(""); }}
+              className={`text-sm font-medium transition-all relative pb-2 cursor-pointer ${
+                active === "all"
+                  ? "text-gold font-semibold"
+                  : "text-ink-soft hover:text-dark"
+              }`}
+            >
+              All Categories
+              {active === "all" && (
+                <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-gold rounded-full" />
+              )}
+            </button>
+            {displayCategories.map((c) => {
+              const isActive = active === c.slug;
+              return (
+                <button
+                  key={c.slug}
+                  onClick={() => { setActive(c.slug); setActiveSub(""); }}
+                  className={`text-sm font-medium transition-all relative pb-2 cursor-pointer ${
+                    isActive
+                      ? "text-gold font-semibold"
+                      : "text-ink-soft hover:text-dark"
+                  }`}
+                >
+                  {c.name}
+                  {isActive && (
+                    <span className="absolute bottom-0 left-0 right-0 h-[3px] bg-gold rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="grid lg:grid-cols-[220px_1fr] gap-10">
           <aside className="hidden lg:block">
             <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mb-4">Categories</p>
             <ul className="space-y-1">
-              <FilterItem label="All" slug="all" active={active} onClick={setActive} count={displayProducts.length} />
+              <FilterItem label="All" slug="all" active={active} onClick={(s) => { setActive(s); setActiveSub(""); }} count={displayProducts.length} />
               {displayCategories.map((c) => (
                 <FilterItem
                   key={c.slug}
                   label={c.name}
                   slug={c.slug}
                   active={active}
-                  onClick={setActive}
+                  onClick={(s) => { setActive(s); setActiveSub(""); }}
                   count={c.count}
                 />
               ))}
             </ul>
+            {activeCategorySubs.length > 0 && (
+              <>
+                <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mt-6 mb-3">Subcategories</p>
+                <ul className="space-y-1">
+                  <FilterItem label={`All ${displayCategories.find((c) => c.slug === active)?.name ?? ""}`} slug="" active={activeSub} onClick={setActiveSub} count={displayProducts.filter((p) => p.category_slug === active).length} />
+                  {activeCategorySubs.map((s) => {
+                    const count = displayProducts.filter((p) => p.category_slug === active && p.subcategory_slug === s.slug).length;
+                    return (
+                      <FilterItem key={s.slug} label={s.name} slug={s.slug} active={activeSub} onClick={setActiveSub} count={count} />
+                    );
+                  })}
+                </ul>
+              </>
+            )}
           </aside>
 
           <section>
@@ -208,18 +290,32 @@ function ShopInner() {
               <button onClick={() => setMobileFiltersOpen(false)} className="text-ink-muted text-sm">Close</button>
             </div>
             <ul className="space-y-1">
-              <FilterItem label="All" slug="all" active={active} onClick={(s) => { setActive(s); setMobileFiltersOpen(false); }} count={displayProducts.length} />
+              <FilterItem label="All" slug="all" active={active} onClick={(s) => { setActive(s); setActiveSub(""); setMobileFiltersOpen(false); }} count={displayProducts.length} />
               {displayCategories.map((c) => (
                 <FilterItem
                   key={c.slug}
                   label={c.name}
                   slug={c.slug}
                   active={active}
-                  onClick={(s) => { setActive(s); setMobileFiltersOpen(false); }}
+                  onClick={(s) => { setActive(s); setActiveSub(""); setMobileFiltersOpen(false); }}
                   count={c.count}
                 />
               ))}
             </ul>
+            {activeCategorySubs.length > 0 && (
+              <>
+                <p className="text-[11px] tracking-[0.18em] uppercase text-ink-muted mt-6 mb-3">Subcategories</p>
+                <ul className="space-y-1">
+                  <FilterItem label={`All ${displayCategories.find((c) => c.slug === active)?.name ?? ""}`} slug="" active={activeSub} onClick={(s) => { setActiveSub(s); setMobileFiltersOpen(false); }} count={displayProducts.filter((p) => p.category_slug === active).length} />
+                  {activeCategorySubs.map((s) => {
+                    const count = displayProducts.filter((p) => p.category_slug === active && p.subcategory_slug === s.slug).length;
+                    return (
+                      <FilterItem key={s.slug} label={s.name} slug={s.slug} active={activeSub} onClick={(sc) => { setActiveSub(sc); setMobileFiltersOpen(false); }} count={count} />
+                    );
+                  })}
+                </ul>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -8,13 +8,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { id } = await params;
     const db = await adminDb();
     const body = await req.json();
-    const { error } = await db.from("categories").update({
+    const { error } = await db.from("subcategories").update({
       name: body.name,
       slug: body.slug,
-      emoji: body.emoji ?? "📦",
-      bg_color: body.bg_color,
-      description: body.description,
-      weight_units: body.weight_units ?? [],
+      emoji: body.emoji,
+      position: body.position,
     }).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
@@ -28,7 +26,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const db = await adminDb();
-    const { error } = await db.from("categories").delete().eq("id", id);
+    const { error } = await db.from("subcategories").delete().eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {

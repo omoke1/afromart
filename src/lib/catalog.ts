@@ -19,7 +19,6 @@ export type Product = {
 export type Category = {
   name: string;
   slug: string;
-  emoji: string;
   bg: string;
   description: string;
 };

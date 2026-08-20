@@ -21,10 +21,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const productRaw = await supabase
     .from("products")
-    .select("*, categories(name, slug), product_options(id, weight, price, compare_at, stock)")
+    .select("*, categories(name, slug), subcategories(name, slug), product_options(id, weight, price, compare_at, stock)")
     .eq("id", id)
     .single();
-  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number; category_id: string; image_url: string | null; categories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
+  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number; category_id: string; subcategory_id: string | null; image_url: string | null; categories: { name: string; slug: string } | null; subcategories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
 
@@ -96,6 +96,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   };
 
   const cat = product.categories;
+  const subcat = product.subcategories;
   const options = (product.product_options ?? [])
     .map((o) => ({
       id: o.id,
@@ -132,6 +133,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     name: product.name,
     category: cat?.name ?? "",
     category_slug: cat?.slug ?? "",
+    subcategory: subcat?.name ?? null,
+    subcategory_slug: subcat?.slug ?? null,
     price: Number(product.price),
     compare_at: product.compare_at ? Number(product.compare_at) : null,
     emoji: product.emoji,
@@ -187,6 +190,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <Link href="/shop" className="hover:text-dark">Shop</Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <Link href={`/shop?category=${displayProduct.category_slug}`} className="hover:text-dark">{displayProduct.category}</Link>
+          {displayProduct.subcategory && (
+            <>
+              <ChevronRight className="w-3.5 h-3.5" />
+              <Link href={`/shop?category=${displayProduct.category_slug}&subcategory=${displayProduct.subcategory_slug}`} className="hover:text-dark">{displayProduct.subcategory}</Link>
+            </>
+          )}
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-dark line-clamp-1">{displayProduct.name}</span>
         </nav>

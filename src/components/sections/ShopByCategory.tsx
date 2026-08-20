@@ -7,20 +7,19 @@ import { ArrowRight, ArrowLeft } from "lucide-react";
 type Category = {
   name: string;
   examples: string;
-  emoji: string;
   bg: string;
   slug: string;
 };
 
 const categories: Category[] = [
-  { name: "Tubers & Grains", examples: "Yam, Rice, Beans, e.t.c.", emoji: "🍠", bg: "#EAF6E4", slug: "tubers-grains" },
-  { name: "Protein", examples: "Fish, Meat, Shrimps, e.t.c.", emoji: "🐟", bg: "#E4F3F7", slug: "protein" },
-  { name: "Food Bundles", examples: "Stew Bundle, e.t.c.", emoji: "🧺", bg: "#E6EEFB", slug: "bundles" },
-  { name: "Cooking Essentials", examples: "Salt, Palm Oil, Curry…", emoji: "🫙", bg: "#FBF4D9", slug: "cooking-essentials" },
-  { name: "Organic Foods", examples: "Honey, Cloves, e.t.c.", emoji: "🍯", bg: "#F4ECFB", slug: "organic" },
-  { name: "Household", examples: "Toilet Rolls, Detergents…", emoji: "🧻", bg: "#FBE7DC", slug: "household" },
-  { name: "Spices & Seasonings", examples: "Suya, Curry, Maggi…", emoji: "🌶️", bg: "#FBE4E4", slug: "spices" },
-  { name: "Snacks & Drinks", examples: "Chin Chin, Malt, e.t.c.", emoji: "🥤", bg: "#E4F7EC", slug: "snacks" },
+  { name: "Tubers & Grains", examples: "Yam, Rice, Beans, e.t.c.", bg: "#EAF6E4", slug: "tubers-grains" },
+  { name: "Protein", examples: "Fish, Meat, Shrimps, e.t.c.", bg: "#E4F3F7", slug: "protein" },
+  { name: "Food Bundles", examples: "Stew Bundle, e.t.c.", bg: "#E6EEFB", slug: "bundles" },
+  { name: "Cooking Essentials", examples: "Salt, Palm Oil, Curry…", bg: "#FBF4D9", slug: "cooking-essentials" },
+  { name: "Organic Foods", examples: "Honey, Cloves, e.t.c.", bg: "#F4ECFB", slug: "organic" },
+  { name: "Household", examples: "Toilet Rolls, Detergents…", bg: "#FBE7DC", slug: "household" },
+  { name: "Spices & Seasonings", examples: "Suya, Curry, Maggi…", bg: "#FBE4E4", slug: "spices" },
+  { name: "Snacks & Drinks", examples: "Chin Chin, Malt, e.t.c.", bg: "#E4F7EC", slug: "snacks" },
 ];
 
 export default function ShopByCategory() {
@@ -67,8 +66,8 @@ export default function ShopByCategory() {
             className="group shrink-0 w-[260px] rounded-2xl p-4 flex items-center gap-4 transition-transform hover:-translate-y-1"
             style={{ backgroundColor: cat.bg }}
           >
-            <div className="w-14 h-14 rounded-xl bg-white/70 flex items-center justify-center text-3xl shrink-0">
-              {cat.emoji}
+            <div className="w-14 h-14 rounded-xl bg-white/70 flex items-center justify-center text-xl font-semibold text-dark shrink-0">
+              {cat.name.charAt(0)}
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-dark leading-tight">{cat.name}</p>

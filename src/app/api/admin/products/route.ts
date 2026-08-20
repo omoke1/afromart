@@ -76,6 +76,7 @@ export async function POST(req: Request) {
     const data = {
       name: body.name,
       category_id: body.category_id,
+      subcategory_id: body.subcategory_id || null,
       weight: body.weight,
       price: body.price,
       compare_at: body.compare_at,
