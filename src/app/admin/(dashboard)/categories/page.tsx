@@ -1,13 +1,14 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import Image from "next/image";
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronRight } from "lucide-react";
 
 type Category = {
   id: string;
   name: string;
   slug: string;
-  emoji: string;
+  image_url: string | null;
   bg_color: string;
   description: string;
   weight_units: string[];
@@ -21,6 +22,24 @@ type Subcategory = {
   emoji: string;
   position: number;
 };
+
+function CategoryAvatar({ name, imageUrl, bgColor }: { name: string; imageUrl?: string | null; bgColor?: string }) {
+  if (imageUrl) {
+    return (
+      <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-[#e6e1d6]">
+        <Image src={imageUrl} alt={name} width={32} height={32} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+  return (
+    <div
+      className="w-8 h-8 rounded-lg shrink-0 flex items-center justify-center text-sm font-semibold text-dark border border-[#e6e1d6]"
+      style={{ background: bgColor || "#f4f1ea" }}
+    >
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -69,7 +88,7 @@ export default function AdminCategoriesPage() {
     const payload = {
       name: form.get("name") as string,
       slug: form.get("slug") as string,
-      emoji: (form.get("emoji") as string) || "📦",
+      image_url: (form.get("image_url") as string) || null,
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       description: (form.get("description") as string) || "",
       weight_units: weightUnits,
@@ -150,7 +169,7 @@ export default function AdminCategoriesPage() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-lg">{c.emoji}</span>
+                        <CategoryAvatar name={c.name} imageUrl={c.image_url} bgColor={c.bg_color} />
                         <span className="text-dark font-medium">{c.name}</span>
                       </div>
                     </td>
@@ -214,7 +233,7 @@ export default function AdminCategoriesPage() {
       {modal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setModal(null)} />
-          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-dark">{modal === "create" ? "New category" : "Edit category"}</h3>
               <button onClick={() => setModal(null)} className="text-ink-muted hover:text-dark"><X className="w-5 h-5" /></button>
@@ -222,10 +241,19 @@ export default function AdminCategoriesPage() {
             <form onSubmit={handleSave} className="space-y-4">
               <Field label="Name" name="name" defaultValue={editItem?.name} required />
               <Field label="Slug" name="slug" defaultValue={editItem?.slug} required placeholder="e.g. grains" />
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Emoji" name="emoji" defaultValue={editItem?.emoji ?? "📦"} />
-                <Field label="Background color" name="bg_color" defaultValue={editItem?.bg_color ?? "#f4f1ea"} />
-              </div>
+              <Field
+                label="Image URL"
+                name="image_url"
+                defaultValue={editItem?.image_url ?? ""}
+                placeholder="https://... (leave blank for text fallback)"
+              />
+              {editItem?.image_url && (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-[#e6e1d6] bg-[#fafaf7]">
+                  <Image src={editItem.image_url} alt={editItem.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover border border-[#e6e1d6]" />
+                  <span className="text-xs text-ink-soft">Current image</span>
+                </div>
+              )}
+              <Field label="Background color" name="bg_color" defaultValue={editItem?.bg_color ?? "#f4f1ea"} />
               <label className="block">
                 <span className="block text-xs font-medium text-ink-soft mb-1.5">Description</span>
                 <textarea name="description" rows={2} defaultValue={editItem?.description ?? ""}

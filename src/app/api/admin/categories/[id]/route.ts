@@ -11,7 +11,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { error } = await db.from("categories").update({
       name: body.name,
       slug: body.slug,
-      emoji: body.emoji ?? "📦",
+      image_url: body.image_url ?? null,
       bg_color: body.bg_color,
       description: body.description,
       weight_units: body.weight_units ?? [],

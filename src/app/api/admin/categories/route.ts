@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const { error } = await db.from("categories").insert({
       name: body.name,
       slug: body.slug,
-      emoji: body.emoji ?? "📦",
+      image_url: body.image_url ?? null,
       bg_color: body.bg_color,
       description: body.description,
       weight_units: body.weight_units ?? [],

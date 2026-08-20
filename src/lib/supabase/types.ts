@@ -15,7 +15,7 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
-          emoji: string;
+          image_url: string | null;
           bg_color: string;
           description: string;
           weight_units: string[];
@@ -25,7 +25,7 @@ export interface Database {
           id?: string;
           name: string;
           slug: string;
-          emoji?: string;
+          image_url?: string | null;
           bg_color: string;
           description: string;
           weight_units?: string[];
@@ -35,7 +35,7 @@ export interface Database {
           id?: string;
           name?: string;
           slug?: string;
-          emoji?: string;
+          image_url?: string | null;
           bg_color?: string;
           description?: string;
           weight_units?: string[];

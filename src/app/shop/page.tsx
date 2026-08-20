@@ -33,7 +33,7 @@ type DisplayCategory = {
   id: string;
   name: string;
   slug: string;
-  emoji: string;
+  image_url: string | null;
   bg: string;
   description: string;
   count: number;
@@ -65,7 +65,7 @@ function ShopInner() {
     const supabase = createClient();
     async function load() {
       const catRaw = await supabase.from("categories").select("*").order("name");
-      const categories = catRaw.data as { id: string; name: string; slug: string; emoji: string; bg_color: string; description: string }[] | null;
+      const categories = catRaw.data as { id: string; name: string; slug: string; image_url: string | null; bg_color: string; description: string }[] | null;
       const subcatRaw = await supabase.from("subcategories").select("*").order("position");
       const subcatData = (subcatRaw.data ?? []) as { id: string; category_id: string; name: string; slug: string; emoji: string; position: number }[];
       const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug), product_options(id, weight, price, stock)").eq("is_active", true).order("name");
@@ -83,7 +83,7 @@ function ShopInner() {
           id: c.id,
           name: c.name,
           slug: c.slug,
-          emoji: c.emoji,
+          image_url: c.image_url ?? null,
           bg: c.bg_color,
           description: c.description,
           count: products.filter((p) => p.category_id === c.id).length,
