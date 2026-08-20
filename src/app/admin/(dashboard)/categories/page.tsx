@@ -1,8 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, useRef } from "react";
 import Image from "next/image";
-import { Plus, Pencil, Trash2, X, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronDown, ChevronRight, Upload, Clipboard, ImageUp } from "lucide-react";
 
 type Category = {
   id: string;
@@ -50,6 +50,9 @@ export default function AdminCategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [weightUnits, setWeightUnits] = useState<string[]>([]);
   const [newUnit, setNewUnit] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [subcats, setSubcats] = useState<Record<string, Subcategory[]>>({});
@@ -78,8 +81,8 @@ export default function AdminCategoriesPage() {
     else { setExpandedCat(catId); if (!subcats[catId]) loadSubcats(catId); }
   }
 
-  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setModal("create"); }
-  function openEdit(cat: Category) { setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setModal("edit"); }
+  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setImageUrl(""); setModal("create"); }
+  function openEdit(cat: Category) { setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setImageUrl(cat.image_url ?? ""); setModal("edit"); }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -88,7 +91,7 @@ export default function AdminCategoriesPage() {
     const payload = {
       name: form.get("name") as string,
       slug: form.get("slug") as string,
-      image_url: (form.get("image_url") as string) || null,
+      image_url: imageUrl || null,
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       description: (form.get("description") as string) || "",
       weight_units: weightUnits,
@@ -97,6 +100,46 @@ export default function AdminCategoriesPage() {
     const method = modal === "edit" ? "PATCH" : "POST";
     await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     setModal(null); setEditItem(null); setSaving(false); loadCategories();
+  }
+
+  async function uploadFile(file: File) {
+    if (!file.type.startsWith("image/")) { alert("Please upload an image file."); return; }
+    if (file.size > 5 * 1024 * 1024) { alert("Image must be under 5 MB."); return; }
+    setUploading(true);
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/admin/upload", { method: "POST", body });
+    const data = await res.json();
+    if (!res.ok || !data.url) {
+      alert(data.error ?? "Upload failed.");
+      setUploading(false);
+      return;
+    }
+    setImageUrl(data.url);
+    setUploading(false);
+  }
+
+  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const file = e.clipboardData.files?.[0];
+    if (file) { uploadFile(file); return; }
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith("image/")) {
+        const blob = items[i].getAsFile();
+        if (blob) { uploadFile(blob); return; }
+      }
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) uploadFile(file);
   }
 
   async function handleDelete() {
@@ -241,18 +284,43 @@ export default function AdminCategoriesPage() {
             <form onSubmit={handleSave} className="space-y-4">
               <Field label="Name" name="name" defaultValue={editItem?.name} required />
               <Field label="Slug" name="slug" defaultValue={editItem?.slug} required placeholder="e.g. grains" />
-              <Field
-                label="Image URL"
-                name="image_url"
-                defaultValue={editItem?.image_url ?? ""}
-                placeholder="https://... (leave blank for text fallback)"
-              />
-              {editItem?.image_url && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-[#e6e1d6] bg-[#fafaf7]">
-                  <Image src={editItem.image_url} alt={editItem.name} width={40} height={40} className="w-10 h-10 rounded-lg object-cover border border-[#e6e1d6]" />
-                  <span className="text-xs text-ink-soft">Current image</span>
+              <label className="block">
+                <span className="block text-xs font-medium text-ink-soft mb-1.5">Image</span>
+                <div
+                  onPaste={handlePaste}
+                  onDrop={handleDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileRef.current?.click()}
+                  className="relative w-full h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-colors overflow-hidden bg-white border-[#e6e1d6] hover:border-dark"
+                >
+                  {imageUrl ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={imageUrl} alt="Category" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setImageUrl(""); if (fileRef.current) fileRef.current.value = ""; }}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-dark/70 text-white flex items-center justify-center hover:bg-dark transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-7 h-7 text-ink-muted mb-2" />
+                      <span className="text-sm text-ink-muted">
+                        {uploading ? "Uploading…" : "Click, paste, or drag an image"}
+                      </span>
+                      <span className="flex items-center gap-3 mt-2 text-[11px] text-ink-muted">
+                        <span className="flex items-center gap-1"><Clipboard className="w-3 h-3" /> Ctrl+V</span>
+                        <span className="flex items-center gap-1"><ImageUp className="w-3 h-3" /> Drag &amp; drop</span>
+                      </span>
+                      <span className="text-xs text-ink-muted mt-1">PNG, JPG, WebP up to 5 MB · leave blank for text fallback</span>
+                    </>
+                  )}
                 </div>
-              )}
+                <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={handleImage} className="hidden" />
+              </label>
               <Field label="Background color" name="bg_color" defaultValue={editItem?.bg_color ?? "#f4f1ea"} />
               <label className="block">
                 <span className="block text-xs font-medium text-ink-soft mb-1.5">Description</span>

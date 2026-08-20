@@ -40,8 +40,8 @@ export default function ProductForm({ mode, product }: Props) {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState((product?.subcategory_id as string) ?? "");
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const presetUnits = categories.find((c) => c.id === selectedCategoryId)?.weight_units ?? [];
+  const [presetUnits, setPresetUnits] = useState<string[]>([]);
+  const [newPreset, setNewPreset] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/categories")
@@ -59,6 +59,15 @@ export default function ProductForm({ mode, product }: Props) {
         setSubcategories(data.subcategories ?? []);
       });
   }, [selectedCategoryId]);
+
+  const presetSourceCat = categories.find((c) => c.id === selectedCategoryId);
+  const presetSourceKey = `${selectedCategoryId}:${presetSourceCat?.weight_units?.join(",") ?? ""}`;
+  const prevPresetSourceKey = useRef(presetSourceKey);
+  if (prevPresetSourceKey.current !== presetSourceKey) {
+    prevPresetSourceKey.current = presetSourceKey;
+    setPresetUnits(presetSourceCat?.weight_units ?? []);
+    setNewPreset("");
+  }
 
   useEffect(() => {
     if (mode === "create" || !product) return;
@@ -119,6 +128,20 @@ export default function ProductForm({ mode, product }: Props) {
 
   const removeRow = (index: number) =>
     setOptionRows((prev) => prev.filter((_, idx) => idx !== index));
+
+  const addPreset = () => {
+    const val = newPreset.trim();
+    if (val && !presetUnits.includes(val)) {
+      setPresetUnits([...presetUnits, val]);
+      setNewPreset("");
+    }
+  };
+
+  const quickFill = (u: string) => {
+    const emptyIdx = optionRows.findIndex((r) => !r.weight.trim());
+    const targetIdx = emptyIdx >= 0 ? emptyIdx : optionRows.length - 1;
+    updateRow(targetIdx, "weight", u);
+  };
 
   async function uploadFile(file: File) {
     if (!file.type.startsWith("image/")) {
@@ -256,6 +279,15 @@ export default function ProductForm({ mode, product }: Props) {
       setError(result.error ?? "Could not save product.");
       setLoading(false);
       return;
+    }
+
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (cat && (cat.weight_units ?? []).join("|") !== presetUnits.join("|")) {
+      await fetch(`/api/admin/categories/${cat.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weight_units: presetUnits }),
+      });
     }
 
     router.push("/admin/products");
@@ -404,25 +436,47 @@ export default function ProductForm({ mode, product }: Props) {
             </button>
           </div>
 
-          {presetUnits.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-[11px] text-ink-muted leading-6">Quick-fill weight:</span>
-              {presetUnits.map((u) => (
-                <button
-                  key={u}
-                  type="button"
-                  onClick={() => {
-                    const emptyIdx = optionRows.findIndex((r) => !r.weight.trim());
-                    const targetIdx = emptyIdx >= 0 ? emptyIdx : optionRows.length - 1;
-                    updateRow(targetIdx, "weight", u);
-                  }}
-                  className="h-6 px-2.5 rounded-full bg-[#f4f1ea] text-[11px] text-dark font-medium hover:bg-dark hover:text-white transition-colors"
-                >
-                  {u}
-                </button>
-              ))}
+          {/* Weight / size presets (saved to the category) */}
+          <div className="border border-[#e6e1d6] rounded-xl p-4 space-y-3">
+            <div>
+              <span className="block text-xs font-semibold text-dark">Weight / Size presets</span>
+              <span className="block text-[11px] text-ink-muted mt-0.5">
+                Quick-fill weights for this category. Saved to the category and reused for all its products.
+              </span>
             </div>
-          )}
+            {presetUnits.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {presetUnits.map((u) => (
+                  <span key={u} className="inline-flex items-center gap-1 h-6 pl-2.5 pr-1 rounded-full bg-[#f4f1ea] text-[11px] text-dark">
+                    <button type="button" onClick={() => quickFill(u)} title={`Fill weight with ${u}`} className="font-medium hover:text-brand">
+                      {u}
+                    </button>
+                    <button type="button" onClick={() => setPresetUnits(presetUnits.filter((x) => x !== u))} title="Remove preset" className="w-4 h-4 rounded-full flex items-center justify-center text-ink-muted hover:text-red">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-ink-muted">No presets yet. Add common weights / sizes below.</p>
+            )}
+            <div className="flex gap-2">
+              <input
+                value={newPreset}
+                onChange={(e) => setNewPreset(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addPreset(); } }}
+                placeholder="e.g. Half bag, 5 kg, Paint"
+                className="flex-1 h-9 px-3 border border-[#e6e1d6] rounded-xl text-xs text-dark bg-white focus:outline-none focus:border-dark"
+              />
+              <button
+                type="button"
+                onClick={addPreset}
+                className="h-9 px-3 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea] transition-colors shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
 
           {optionsLoading ? (
             <p className="text-sm text-ink-muted py-2">Loading options…</p>

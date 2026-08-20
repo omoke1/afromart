@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, handleAuthError } from "@/lib/admin-api";
+import type { Database } from "@/lib/supabase/types";
 
 export const runtime = "nodejs";
 
@@ -8,14 +9,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { id } = await params;
     const db = await adminDb();
     const body = await req.json();
-    const { error } = await db.from("categories").update({
-      name: body.name,
-      slug: body.slug,
-      image_url: body.image_url ?? null,
-      bg_color: body.bg_color,
-      description: body.description,
-      weight_units: body.weight_units ?? [],
-    }).eq("id", id);
+    const update: Database["public"]["Tables"]["categories"]["Update"] = {};
+    if (body.name !== undefined) update.name = body.name;
+    if (body.slug !== undefined) update.slug = body.slug;
+    if (body.image_url !== undefined) update.image_url = body.image_url ?? null;
+    if (body.bg_color !== undefined) update.bg_color = body.bg_color;
+    if (body.description !== undefined) update.description = body.description;
+    if (body.weight_units !== undefined) update.weight_units = body.weight_units ?? [];
+    const { error } = await db.from("categories").update(update).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (err) {
