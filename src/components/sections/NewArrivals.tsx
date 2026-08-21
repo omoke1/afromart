@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import ProductCard from "@/components/ui/ProductCard";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteSettings } from "@/lib/useSiteSettings";
 
 type Product = {
   id: string;
@@ -25,6 +26,7 @@ type Product = {
 };
 
 export default function NewArrivals() {
+  const { show_product_categories: showProductCategories } = useSiteSettings();
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
@@ -76,7 +78,7 @@ export default function NewArrivals() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={{ ...p, showCategory: showProductCategories }} />
         ))}
       </div>
     </section>

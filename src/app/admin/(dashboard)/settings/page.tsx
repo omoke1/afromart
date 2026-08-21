@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { KeyRound } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Eye, KeyRound } from "lucide-react";
 import { useToast } from "@/components/ui/ToastProvider";
 
 export default function AdminSettingsPage() {
@@ -9,6 +9,21 @@ export default function AdminSettingsPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
+  const [visibility, setVisibility] = useState({ show_catalog_nav: false, show_product_breadcrumbs: false, show_product_categories: false });
+  const [visibilitySaving, setVisibilitySaving] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/site-settings").then((res) => res.json()).then((data) => {
+      if (data.settings) setVisibility((current) => ({ ...current, ...data.settings }));
+    });
+  }, []);
+
+  async function saveVisibility() {
+    setVisibilitySaving(true);
+    await fetch("/api/admin/site-settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(visibility) });
+    setVisibilitySaving(false);
+    toast("Visibility settings updated.");
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,6 +61,28 @@ export default function AdminSettingsPage() {
   return (
     <div className="max-w-md">
       <h2 className="text-lg font-semibold text-dark mb-6">Settings</h2>
+
+      <div className="bg-white border border-[#e6e1d6] rounded-xl p-5 mb-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye className="w-4 h-4 text-ink-muted" />
+          <h3 className="text-sm font-semibold text-dark">Storefront visibility</h3>
+        </div>
+        <div className="space-y-3">
+          {([
+            ["show_catalog_nav", "Categories and Products navigation"],
+            ["show_product_breadcrumbs", "Product breadcrumbs"],
+            ["show_product_categories", "Product category labels"],
+          ] as const).map(([key, label]) => (
+            <label key={key} className="flex items-center gap-3 text-sm text-dark">
+              <input type="checkbox" checked={visibility[key]} onChange={(e) => setVisibility((current) => ({ ...current, [key]: e.target.checked }))} className="accent-brand" />
+              {label}
+            </label>
+          ))}
+        </div>
+        <button onClick={saveVisibility} disabled={visibilitySaving} className="mt-5 h-9 px-5 rounded-full bg-dark text-white text-xs font-semibold hover:bg-brand disabled:opacity-50">
+          {visibilitySaving ? "Saving…" : "Save visibility"}
+        </button>
+      </div>
 
       <div className="bg-white border border-[#e6e1d6] rounded-xl p-5">
         <div className="flex items-center gap-2 mb-4">

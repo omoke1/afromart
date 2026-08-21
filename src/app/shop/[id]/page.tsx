@@ -29,6 +29,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   if (!product) notFound();
 
+  const { data: siteSettings } = await supabase
+    .from("site_settings")
+    .select("show_catalog_nav, show_product_breadcrumbs, show_product_categories")
+    .eq("id", "default")
+    .maybeSingle();
+  const showCatalogNav = siteSettings?.show_catalog_nav === true;
+  const showProductBreadcrumbs = siteSettings?.show_product_breadcrumbs === true;
+  const showProductCategories = siteSettings?.show_product_categories === true;
+
   const [reviewRes, user] = await Promise.all([
     // Admin client so the reviewer's name comes through — the public client
     // would be blocked from joining profiles by RLS.
@@ -190,7 +199,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       <CategoryBar />
 
       <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-10 pt-5 lg:pt-7 pb-20 flex-1">
-        <nav className="flex items-center gap-7 text-sm text-dark mb-8" aria-label="Product navigation">
+        {showCatalogNav && <nav className="flex items-center gap-7 text-sm text-dark mb-8" aria-label="Product navigation">
           <Link href="/shop" className="flex items-center gap-2 hover:text-brand transition-colors">
             <span className="grid grid-cols-2 gap-0.5" aria-hidden="true">
               <span className="w-1.5 h-1.5 rounded-sm border border-current" />
@@ -204,14 +213,14 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             <span className="w-4 h-4 rounded-md border border-current" aria-hidden="true" />
             Products
           </Link>
-        </nav>
+        </nav>}
 
         <Link href="/shop" className="mb-8 inline-flex items-center gap-2 text-base font-semibold text-dark hover:text-brand transition-colors">
           <span className="text-2xl leading-none" aria-hidden="true">‹</span>
           {displayProduct.name}
         </Link>
 
-        <nav className="flex items-center gap-2 text-sm text-ink-muted mb-8 flex-wrap" aria-label="Breadcrumb">
+        {showProductBreadcrumbs && <nav className="flex items-center gap-2 text-sm text-ink-muted mb-8 flex-wrap" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-dark">Home</Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <Link href="/shop" className="hover:text-dark">Shop</Link>
@@ -225,7 +234,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           )}
           <ChevronRight className="w-3.5 h-3.5" />
           <span className="text-dark line-clamp-1">{displayProduct.name}</span>
-        </nav>
+        </nav>}
 
         <div className="grid lg:grid-cols-[1.04fr_1fr] gap-8 lg:gap-12 items-start">
           <div>
@@ -254,9 +263,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           </div>
 
           <div className="flex flex-col rounded-xl border border-line bg-white p-6 lg:p-7 shadow-[0_2px_10px_rgba(30,0,12,0.03)]">
-            <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">
-              {displayProduct.category}
-            </p>
+            {showProductCategories && <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">{displayProduct.category}</p>}
             <h1 className="text-3xl lg:text-4xl font-semibold text-dark tracking-tight">{displayProduct.name}</h1>
 
             {displayProduct.origin && (

@@ -7,6 +7,7 @@ import { SlidersHorizontal, LayoutGrid, Store, ChevronDown, X } from "lucide-rea
 import { createClient } from "@/lib/supabase/client";
 import Navbar from "@/components/layout/Navbar";
 import CategoryBar from "@/components/layout/CategoryBar";
+import { useSiteSettings } from "@/lib/useSiteSettings";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ui/ProductCard";
 
@@ -50,6 +51,7 @@ type DisplaySubcategory = {
 };
 
 function ShopInner() {
+  const { show_product_categories: showProductCategories } = useSiteSettings();
   const searchParams = useSearchParams();
   const queryCategory = searchParams.get("category") ?? "all";
   const querySubcategory = searchParams.get("subcategory") ?? "";
@@ -327,7 +329,7 @@ function ShopInner() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-5 gap-y-10">
             {visible.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p.id} product={{ ...p, showCategory: showProductCategories }} />
             ))}
           </div>
         )}

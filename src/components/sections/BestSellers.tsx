@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import ProductCard from "@/components/ui/ProductCard";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteSettings } from "@/lib/useSiteSettings";
 
 type Product = {
   id: string;
@@ -25,6 +26,7 @@ type Product = {
 };
 
 export default function BestSellers() {
+  const { show_product_categories: showProductCategories } = useSiteSettings();
   const [active, setActive] = useState("all");
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
@@ -128,7 +130,7 @@ export default function BestSellers() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-5 gap-y-10">
         {visible.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={{ ...p, showCategory: showProductCategories }} />
         ))}
       </div>
     </section>

@@ -10,6 +10,30 @@ type Relationship = {
 export interface Database {
   public: {
     Tables: {
+      site_settings: {
+        Row: {
+          id: string;
+          show_catalog_nav: boolean;
+          show_product_breadcrumbs: boolean;
+          show_product_categories: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          show_catalog_nav?: boolean;
+          show_product_breadcrumbs?: boolean;
+          show_product_categories?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          show_catalog_nav?: boolean;
+          show_product_breadcrumbs?: boolean;
+          show_product_categories?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
           id: string;

@@ -13,7 +13,6 @@ import { productPath } from "@/lib/product-url";
 
 type CardOption = {
   id: string;
-  slug?: string | null;
   weight: string;
   price: number;
   stock: number | null;
@@ -21,6 +20,7 @@ type CardOption = {
 
 type ProductCardProduct = {
   id: string;
+  slug?: string | null;
   name: string;
   category: string;
   price: number;
@@ -31,6 +31,7 @@ type ProductCardProduct = {
   weight: string;
   image_url?: string;
   stock?: number | null;
+  showCategory?: boolean;
   options?: CardOption[];
 };
 
@@ -122,9 +123,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
       </Link>
 
       <div className="pt-4 px-1 flex flex-col">
-        <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1.5">
-          {product.category}
-        </p>
+        {product.showCategory !== false && <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted mb-1.5">{product.category}</p>}
         <Link
           href={productPath(product)}
           className="text-[15px] font-medium text-dark leading-snug hover:text-brand transition-colors line-clamp-2 min-h-[44px]"
@@ -143,7 +142,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
           {product.compare_at && (
             <span className="text-sm text-ink-muted line-through">£{product.compare_at.toFixed(2)}</span>
           )}
-          <span className="text-xs text-ink-muted ml-auto">
+          <span className="text-xs text-ink-muted ml-4">
             {hasVariants ? `${options.length} sizes` : product.weight}
           </span>
         </div>

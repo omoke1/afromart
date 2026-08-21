@@ -76,7 +76,7 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
         {compareAt && (
           <span className="text-lg text-ink-muted line-through">{formatCurrency(compareAt, base)}</span>
         )}
-        <span className="text-sm text-ink-muted ml-auto">{weightLabel}</span>
+        <span className="text-sm text-ink-muted ml-2">{weightLabel}</span>
       </div>
 
       <label className="block mt-5">

@@ -128,7 +128,7 @@ export default function AnimatedDropdown({
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               className={cn(
-                "absolute top-[calc(100%+0.5rem)] z-50 w-52 min-w-[12rem] px-2 py-2",
+                "absolute top-[calc(100%+0.5rem)] z-50 w-72 min-w-[18rem] px-2 py-2",
                 align === "left" ? "left-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "right-0",
                 "overflow-visible rounded-2xl",
                 "bg-white",
@@ -180,7 +180,7 @@ export default function AnimatedDropdown({
                       )}
 
                       <div className="min-w-0">
-                        <div className={cn("font-medium truncate", text === item.label && "text-brand font-semibold")}>{item.label}</div>
+                        <div className={cn("font-medium whitespace-normal leading-snug", text === item.label && "text-brand font-semibold")}>{item.label}</div>
                         {item.hint && <div className="text-xs text-ink-muted truncate mt-0.5">{item.hint}</div>}
                       </div>
                     </div>
