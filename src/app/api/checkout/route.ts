@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not load products." }, { status: 500 });
   }
 
-  type Option = { id: string; weight: string; price: number; stock: number; shipping_weight_kg: number | null };
+  type Option = { id: string; weight: string; price: number; stock: number | null; shipping_weight_kg: number | null };
   const priceById = new Map(products.map((p) => [p.id, p]));
 
   // Build verified line items and accumulate shipping weight.
@@ -97,11 +97,11 @@ export async function POST(req: NextRequest) {
       : undefined;
 
     // Never oversell: check real stock server-side before creating the order.
-    const available = option ? Number(option.stock) : Number(product.stock);
-    if (line.qty > available) {
+    const available = option ? option.stock : product.stock;
+    if (available != null && line.qty > Number(available)) {
       const label = option?.weight ? `${product.name} (${option.weight})` : product.name;
       return NextResponse.json(
-        { error: `Only ${available} left of ${label}. Please reduce the quantity.` },
+        { error: `Only ${Number(available)} left of ${label}. Please reduce the quantity.` },
         { status: 409 },
       );
     }
@@ -267,28 +267,25 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Apply the promo discount and gift card as negative line items so the
-  // customer sees exactly what they're paying on Stripe.
-  if (discountPence > 0 && discountLabel) {
-    stripeLineItems.push({
-      quantity: 1,
-      price_data: {
-        currency: "gbp",
-        unit_amount: -discountPence,
-        product_data: { name: `Promo code (${discountLabel})` },
-      },
-    });
-  }
-  if (giftCardUsedPence > 0 && giftCardCode) {
-    stripeLineItems.push({
-      quantity: 1,
-      price_data: {
-        currency: "gbp",
-        unit_amount: -giftCardUsedPence,
-        product_data: { name: `Gift card (${giftCardCode})` },
-      },
-    });
-  }
+  // Stripe prices cannot be negative. Apply all deductions as one one-time
+  // coupon so Stripe receives the same payable total as the order record.
+  const totalDiscountPence = discountPence + giftCardUsedPence;
+  const stripeDiscounts = totalDiscountPence > 0
+    ? [{
+        coupon: (
+          await stripe.coupons.create({
+            amount_off: totalDiscountPence,
+            currency: "gbp",
+            duration: "once",
+            name: discountLabel && giftCardCode
+              ? `Discounts (${discountLabel} + gift card)`
+              : discountLabel
+                ? `Promo code (${discountLabel})`
+                : `Gift card (${giftCardCode})`,
+          })
+        ).id,
+      }]
+    : undefined;
 
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
@@ -300,6 +297,7 @@ export async function POST(req: NextRequest) {
       order_id: order.id,
       user_id: user?.id ?? "guest",
     },
+    ...(stripeDiscounts ? { discounts: stripeDiscounts } : {}),
     shipping_address_collection: { allowed_countries: ["GB"] },
   });
 
