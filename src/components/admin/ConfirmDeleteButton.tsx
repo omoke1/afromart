@@ -68,7 +68,7 @@ export function ConfirmDeleteButton({
               <button
                 onClick={confirm}
                 disabled={busy}
-                className="h-9 px-4 rounded-full bg-red text-white text-xs font-semibold hover:bg-red/90 transition-colors disabled:opacity-50"
+                className="h-9 px-4 rounded-full bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
               >
                 {busy ? "Deleting…" : "Delete"}
               </button>
