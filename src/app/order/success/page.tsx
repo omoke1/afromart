@@ -13,6 +13,7 @@ export default async function OrderSuccessPage({
   const { session_id, id, total } = await searchParams;
 
   let orderId = id ?? "AFM-DEMO01";
+  let trackingRef: string | null = null;
   let totalPaid = total ?? null;
   let paid = false;
 
@@ -21,8 +22,11 @@ export default async function OrderSuccessPage({
     try {
       const session = await stripe.checkout.sessions.retrieve(session_id);
       paid = session.payment_status === "paid";
-      orderId =
-        session.metadata?.order_id?.slice(0, 8).toUpperCase() ?? orderId;
+      const rawOrderId = session.metadata?.order_id;
+      orderId = rawOrderId?.slice(0, 8).toUpperCase() ?? orderId;
+      trackingRef = rawOrderId
+        ? `AFM-${rawOrderId.replace(/-/g, "").slice(0, 10).toUpperCase()}`
+        : null;
       if (session.amount_total != null) {
         totalPaid = (session.amount_total / 100).toFixed(2);
       }
@@ -62,6 +66,12 @@ export default async function OrderSuccessPage({
               <div>
                 <dt className="text-ink-muted text-xs uppercase tracking-wider">Total paid</dt>
                 <dd className="text-dark font-semibold mt-1">£{totalPaid}</dd>
+              </div>
+            )}
+            {trackingRef && (
+              <div>
+                <dt className="text-ink-muted text-xs uppercase tracking-wider">Tracking reference</dt>
+                <dd className="text-dark font-semibold mt-1 font-mono">{trackingRef}</dd>
               </div>
             )}
             <div>

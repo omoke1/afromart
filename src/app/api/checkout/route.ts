@@ -3,8 +3,6 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerUser } from "@/lib/auth";
 import { calculateShippingFee, parseWeightKg } from "@/lib/weight";
-import { notifyAdmins, getAdminEmails } from "@/lib/notify";
-import { sendAdminNewOrderEmail } from "@/lib/email";
 import { validatePromoCode, validateGiftCard } from "@/lib/pricing";
 import type { Json } from "@/lib/supabase/types";
 
@@ -186,7 +184,7 @@ export async function POST(req: NextRequest) {
     .insert({
       id: orderId,
       user_id: user?.id ?? null,
-      status: "Preparing",
+      status: "Pending payment",
       subtotal: subtotalPence / 100,
       delivery: shippingFeePence / 100,
       discount: discountPence / 100,
@@ -221,39 +219,10 @@ export async function POST(req: NextRequest) {
 
   await admin.from("order_events").insert({
     order_id: order.id,
-    event: "created",
-    message: "Order placed",
+    event: "checkout_started",
+    message: "Checkout started; awaiting payment",
     actor: "system",
   });
-
-  // Notify all admins and email them so the team knows an order just landed.
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
-
-  try {
-    await notifyAdmins({
-      type: "new_order",
-      title: "New order received",
-      body: `${address.name} · £${(totalPence / 100).toFixed(2)}`,
-      link: `/admin/orders/${order.id}`,
-    });
-    const adminEmails = await getAdminEmails();
-    if (adminEmails.length > 0) {
-      await Promise.allSettled(
-        adminEmails.map((email) =>
-          sendAdminNewOrderEmail({
-            to: email,
-            orderId: order.id,
-            total: totalPence / 100,
-            customerName: address.name,
-            link: `${siteUrl}/admin/orders/${order.id}`,
-          }),
-        ),
-      );
-    }
-  } catch (err) {
-    console.error("checkout notification failed:", err);
-  }
 
   // Add delivery as its own line item when charged
   if (shippingFeePence > 0) {
@@ -269,37 +238,47 @@ export async function POST(req: NextRequest) {
 
   // Stripe prices cannot be negative. Apply all deductions as one one-time
   // coupon so Stripe receives the same payable total as the order record.
-  const totalDiscountPence = discountPence + giftCardUsedPence;
-  const stripeDiscounts = totalDiscountPence > 0
-    ? [{
-        coupon: (
-          await stripe.coupons.create({
-            amount_off: totalDiscountPence,
-            currency: "gbp",
-            duration: "once",
-            name: discountLabel && giftCardCode
-              ? `Discounts (${discountLabel} + gift card)`
-              : discountLabel
-                ? `Promo code (${discountLabel})`
-                : `Gift card (${giftCardCode})`,
-          })
-        ).id,
-      }]
-    : undefined;
+  try {
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
+    const totalDiscountPence = discountPence + giftCardUsedPence;
+    const stripeDiscounts = totalDiscountPence > 0
+      ? [{
+          coupon: (
+            await stripe.coupons.create({
+              amount_off: totalDiscountPence,
+              currency: "gbp",
+              duration: "once",
+              name: discountLabel && giftCardCode
+                ? `Discounts (${discountLabel} + gift card)`
+                : discountLabel
+                  ? `Promo code (${discountLabel})`
+                  : `Gift card (${giftCardCode})`,
+            })
+          ).id,
+        }]
+      : undefined;
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: stripeLineItems,
-    customer_email: address.email,
-    success_url: `${siteUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${siteUrl}/checkout?cancelled=1`,
-    metadata: {
-      order_id: order.id,
-      user_id: user?.id ?? "guest",
-    },
-    ...(stripeDiscounts ? { discounts: stripeDiscounts } : {}),
-    shipping_address_collection: { allowed_countries: ["GB"] },
-  });
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: stripeLineItems,
+      customer_email: address.email,
+      success_url: `${siteUrl}/order/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${siteUrl}/checkout?cancelled=1`,
+      metadata: {
+        order_id: order.id,
+        user_id: user?.id ?? "guest",
+      },
+      ...(stripeDiscounts ? { discounts: stripeDiscounts } : {}),
+      shipping_address_collection: { allowed_countries: ["GB"] },
+    });
 
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (err) {
+    console.error("Stripe checkout session failed:", err);
+    return NextResponse.json(
+      { error: "We could not start payment. Please try again." },
+      { status: 502 },
+    );
+  }
 }

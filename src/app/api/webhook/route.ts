@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyAdmins, notifyUser } from "@/lib/notify";
+import { getAdminEmails, notifyAdmins, notifyUser } from "@/lib/notify";
 import { generateGiftCardCode } from "@/lib/pricing";
+import { sendAdminNewOrderEmail } from "@/lib/email";
 
 // Stripe needs the raw body to verify the signature.
 export async function POST(req: NextRequest) {
@@ -45,16 +46,21 @@ export async function POST(req: NextRequest) {
         const paymentIntent =
           typeof session.payment_intent === "string" ? session.payment_intent : null;
 
-        await admin
-          .from("orders")
-          .update({ status: "Preparing", payment_intent: paymentIntent })
-          .eq("id", orderId);
-
         const { data: order } = await admin
           .from("orders")
-          .select("user_id, total, subtotal, delivery, discount, gift_card_code, gift_card_used, address")
+          .select("id, status, payment_intent, tracking_number, user_id, total, subtotal, delivery, discount, gift_card_code, gift_card_used, address")
           .eq("id", orderId)
           .maybeSingle();
+
+        if (!order) break;
+        if (order.status === "Preparing" && order.payment_intent === paymentIntent) break;
+
+        const trackingNumber = order.tracking_number ?? `AFM-${orderId.replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+
+        await admin
+          .from("orders")
+          .update({ status: "Preparing", payment_intent: paymentIntent, tracking_number: trackingNumber })
+          .eq("id", orderId);
 
         await decrementStock(admin, orderId);
 
@@ -69,6 +75,31 @@ export async function POST(req: NextRequest) {
           message: paymentIntent ? `Payment received (${paymentIntent.slice(-8)})` : "Payment received",
           actor: "system",
         });
+
+        // Announce and email the order only after Stripe confirms payment.
+        try {
+          const address = (order.address ?? {}) as Record<string, string | null>;
+          await notifyAdmins({
+            type: "new_order",
+            title: "New order received",
+            body: `${address.name ?? "Customer"} · £${Number(order.total).toFixed(2)}`,
+            link: `/admin/orders/${orderId}`,
+          });
+          const adminEmails = await getAdminEmails();
+          await Promise.allSettled(
+            adminEmails.map((email) =>
+              sendAdminNewOrderEmail({
+                to: email,
+                orderId,
+                total: Number(order.total),
+                customerName: address.name ?? "Customer",
+                link: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/admin/orders/${orderId}`,
+              }),
+            ),
+          );
+        } catch (err) {
+          console.error("webhook admin notification failed:", err);
+        }
 
         // Tell the customer their payment went through (in-app + email).
         if (order?.user_id) {
@@ -119,6 +150,7 @@ export async function POST(req: NextRequest) {
               delivery: Number(order?.delivery ?? 0),
               discount: Number(order?.discount ?? 0),
               total: Number(order?.total ?? 0),
+              trackingNumber,
               link: `${siteUrl}/account/orders/${orderId}`,
             });
           }

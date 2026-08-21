@@ -157,6 +157,7 @@ export async function sendOrderConfirmationEmail({
   delivery,
   discount,
   total,
+  trackingNumber,
   link,
 }: {
   to: string;
@@ -167,6 +168,7 @@ export async function sendOrderConfirmationEmail({
   delivery: number;
   discount?: number;
   total: number;
+  trackingNumber?: string | null;
   link: string;
 }): Promise<void> {
   await sendEmail({
@@ -185,7 +187,7 @@ export async function sendOrderConfirmationEmail({
           ${kvRow("Delivery", delivery === 0 ? "Free" : `£${delivery.toFixed(2)}`)}
           ${kvRow("Total", `£${total.toFixed(2)}`, true)}
         </table>
-        <p style="font-size:12px;color:${MUTED};margin:16px 0 0;">You'll get a separate email with tracking details once your order ships.</p>
+        ${trackingNumber ? `<p style="font-size:12px;color:${MUTED};margin:16px 0 0;">AfroMart tracking reference: <strong style="color:${INK};">${trackingNumber}</strong>. We'll send courier tracking details once your order ships.</p>` : ""}
       `,
       cta: { href: link, label: "View your order", bg: BRAND },
     }),

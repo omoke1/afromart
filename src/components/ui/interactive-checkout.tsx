@@ -162,9 +162,15 @@ export function InteractiveCheckout() {
                     giftCardCode: applied?.kind === "gift_card" ? applied.code : undefined,
                 }),
             });
-            const data = await res.json();
+            const responseText = await res.text();
+            let data: { url?: string; error?: string } = {};
+            try {
+                data = responseText ? (JSON.parse(responseText) as { url?: string; error?: string }) : {};
+            } catch {
+                data = {};
+            }
             if (!res.ok || !data.url) {
-                throw new Error(data.error ?? "Something went wrong. Please try again.");
+                throw new Error(data.error ?? "We could not start payment. Please try again.");
             }
             // Cart is cleared on the success page after payment confirms.
             window.location.href = data.url;
@@ -420,7 +426,7 @@ export function InteractiveCheckout() {
                                 {isSubmitting ? (
                                     <>
                                         <CheckCircle2 className="w-5 h-5 animate-pulse" />
-                                        Redirecting to Stripe…
+                                        Processing payment…
                                     </>
                                 ) : (
                                     <>

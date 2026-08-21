@@ -143,6 +143,12 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <span className={`text-xs font-medium px-3 py-1.5 rounded-full ${statusColor(status)}`}>
           {status}
         </span>
+        <Link
+          href={`/account/orders/${order.id}/invoice`}
+          className="h-9 px-4 rounded-full border border-line text-xs font-semibold text-dark hover:border-dark transition-colors"
+        >
+          View invoice
+        </Link>
       </div>
 
       {status === "Cancelled" ? (
