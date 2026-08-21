@@ -21,7 +21,7 @@ type Props = {
   product?: Record<string, unknown>;
 };
 
-const emptyOption = (): OptionRow => ({ weight: "1 kg", price: "", compare_at: "", stock: "0" });
+const emptyOption = (): OptionRow => ({ weight: "1 kg", price: "", compare_at: "", stock: "" });
 
 export default function ProductForm({ mode, product }: Props) {
   const router = useRouter();
@@ -85,7 +85,7 @@ export default function ProductForm({ mode, product }: Props) {
           weight: o.weight,
           price: String(o.price),
           compare_at: o.compare_at ? String(o.compare_at) : "",
-          stock: String(o.stock),
+          stock: o.stock != null ? String(o.stock) : "",
         }));
         if (rows.length === 0) {
           rows.push({
@@ -93,7 +93,7 @@ export default function ProductForm({ mode, product }: Props) {
             weight: (product?.weight as string) || "1 kg",
             price: product?.price != null ? String(product.price) : "",
             compare_at: product?.compare_at ? String(product.compare_at) : "",
-            stock: String((product?.stock as number) ?? 0),
+            stock: product?.stock != null ? String(product.stock) : "",
           });
         }
         setOptionRows(rows);
@@ -221,7 +221,7 @@ export default function ProductForm({ mode, product }: Props) {
       weight: r.weight.trim(),
       price: parseFloat(r.price),
       compare_at: r.compare_at.trim() ? parseFloat(r.compare_at) : null,
-      stock: parseInt(r.stock, 10) || 0,
+      stock: r.stock.trim() === "" ? null : parseInt(r.stock, 10) || 0,
       position: i,
     }));
 
@@ -423,7 +423,7 @@ export default function ProductForm({ mode, product }: Props) {
             <div>
               <span className="block text-xs font-semibold text-dark">Pricing &amp; stock</span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                Each row is a size / weight variant customers can choose. The first row is the default.
+                Each row is a pack option customers can choose. The first row is the default.
               </span>
             </div>
             <button
@@ -432,23 +432,23 @@ export default function ProductForm({ mode, product }: Props) {
               className="flex items-center gap-1 h-8 px-3 rounded-full border border-[#e6e1d6] text-xs font-semibold text-dark hover:bg-[#f4f1ea] transition-colors shrink-0"
             >
               <Plus className="w-3.5 h-3.5" />
-              Add size
+              Add option
             </button>
           </div>
 
-          {/* Weight / size presets (saved to the category) */}
+          {/* Pack option presets (saved to the category) */}
           <div className="border border-[#e6e1d6] rounded-xl p-4 space-y-3">
             <div>
-              <span className="block text-xs font-semibold text-dark">Weight / Size presets</span>
+              <span className="block text-xs font-semibold text-dark">Pack option presets</span>
               <span className="block text-[11px] text-ink-muted mt-0.5">
-                Quick-fill weights for this category. Saved to the category and reused for all its products.
+                Quick-fill pack labels for this category. Saved to the category and reused for all its products.
               </span>
             </div>
             {presetUnits.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {presetUnits.map((u) => (
                   <span key={u} className="inline-flex items-center gap-1 h-6 pl-2.5 pr-1 rounded-full bg-[#f4f1ea] text-[11px] text-dark">
-                    <button type="button" onClick={() => quickFill(u)} title={`Fill weight with ${u}`} className="font-medium hover:text-brand">
+                    <button type="button" onClick={() => quickFill(u)} title={`Fill option with ${u}`} className="font-medium hover:text-brand">
                       {u}
                     </button>
                     <button type="button" onClick={() => setPresetUnits(presetUnits.filter((x) => x !== u))} title="Remove preset" className="w-4 h-4 rounded-full flex items-center justify-center text-ink-muted hover:text-red">
@@ -458,7 +458,7 @@ export default function ProductForm({ mode, product }: Props) {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-ink-muted">No presets yet. Add common weights / sizes below.</p>
+              <p className="text-xs text-ink-muted">No presets yet. Add common pack options below.</p>
             )}
             <div className="flex gap-2">
               <input
@@ -498,12 +498,12 @@ export default function ProductForm({ mode, product }: Props) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="block">
-                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight / size</span>
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Pack option</span>
                     <input
                       type="text"
                       value={row.weight}
                       onChange={(e) => updateRow(i, "weight", e.target.value)}
-                      placeholder="e.g. 1 kg, Half bag"
+                      placeholder="e.g. 1 Piece, Half Dozen"
                       className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
                     />
                   </label>

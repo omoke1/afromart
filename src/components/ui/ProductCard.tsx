@@ -14,7 +14,7 @@ type CardOption = {
   id: string;
   weight: string;
   price: number;
-  stock: number;
+  stock: number | null;
 };
 
 type ProductCardProduct = {
@@ -28,7 +28,7 @@ type ProductCardProduct = {
   badge: string | null;
   weight: string;
   image_url?: string;
-  stock?: number;
+  stock?: number | null;
   options?: CardOption[];
 };
 
@@ -48,9 +48,10 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
   const displayOptions =
     options.length > 0
       ? options
-      : [{ id: "", weight: product.weight, price: product.price, stock: product.stock ?? 1 }];
+      : [{ id: "", weight: product.weight, price: product.price, stock: product.stock ?? null }];
   const hasVariants = options.length > 1;
-  const totalStock = displayOptions.reduce((s, o) => s + o.stock, 0);
+  const hasUnlimited = displayOptions.some((o) => o.stock == null);
+  const totalStock: number | null = hasUnlimited ? null : displayOptions.reduce((s, o) => s + (o.stock ?? 0), 0);
   const minPrice = Math.min(...displayOptions.map((o) => o.price));
   const { currency: preferred } = usePreferredCurrency('GBP');
   const { convert, base } = useExchangeRates();
@@ -162,7 +163,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
               <span className="text-sm font-semibold text-dark">{qty}</span>
               <button
                 onClick={() => setLineQty(firstLineKey(productLines), qty + 1)}
-                disabled={qty >= totalStock}
+                disabled={totalStock != null && qty >= totalStock}
                 aria-label="Increase quantity"
                 className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center hover:bg-brand-hover transition-colors disabled:bg-line disabled:text-ink-muted"
               >

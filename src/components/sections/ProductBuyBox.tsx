@@ -14,15 +14,16 @@ export type ProductOption = {
   weight: string;
   price: number;
   compare_at: number | null;
-  stock: number;
+  stock: number | null;
 };
 
 type BuyBoxProduct = {
   id: string;
   price: number;
-  stock: number;
+  stock: number | null;
   weight: string;
   compare_at?: number | null;
+  image_url?: string;
   options?: ProductOption[];
 };
 
@@ -78,7 +79,9 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
       </div>
 
       <label className="block mt-5">
-        <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight</span>
+        <span className="block text-sm font-medium text-dark mb-2">
+          Pick a buy option{displayOptions.length > 1 ? ` (${displayOptions.length} options available)` : ""}
+        </span>
         <AnimatedDropdown
           items={displayOptions.map((o) => ({
             value: o.id,
@@ -87,21 +90,27 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
             oldPrice: o.compare_at ?? undefined,
             hint: o.stock === 0 ? "Out of stock" : undefined,
             disabled: o.stock === 0,
+            imgSrc: product.image_url,
+            imgAlt: o.weight,
           }))}
           text={weightLabel}
-          className="block"
-          buttonClassName="w-44 h-11 px-4 border-brand/50 rounded-xl bg-white text-brand text-sm font-semibold justify-between hover:bg-brand/5 hover:border-brand"
+          className="block w-full"
+          dropdownClassName="left-0 right-0 w-full min-w-0"
+          buttonClassName="w-full h-14 px-5 border-line rounded-xl bg-white text-ink-soft text-sm justify-between hover:border-brand hover:bg-brand/5"
           onSelect={setSelectedId}
+          align="left"
         />
       </label>
 
       <p className="mt-4 text-sm">
-        {unitStock > 0 ? (
+        {unitStock === 0 ? (
+          <span className="text-red font-medium">Out of stock</span>
+        ) : unitStock == null ? (
+          <span className="text-green font-medium">In stock</span>
+        ) : (
           <span className="text-green font-medium">
             In stock · {unitStock} {unitStock === 1 ? "unit" : "units"} left
           </span>
-        ) : (
-          <span className="text-red font-medium">Out of stock</span>
         )}
       </p>
 
@@ -116,8 +125,8 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
           </button>
           <span className="w-10 text-center font-semibold text-dark">{qty}</span>
           <button
-            onClick={() => setQty((q) => Math.min(unitStock, q + 1))}
-            disabled={qty >= unitStock}
+            onClick={() => setQty((q) => unitStock == null ? q + 1 : Math.min(unitStock, q + 1))}
+            disabled={unitStock != null && qty >= unitStock}
             aria-label="Increase"
             className="w-8 h-8 rounded-full hover:bg-surface text-dark flex items-center justify-center disabled:text-ink-muted disabled:cursor-not-allowed"
           >

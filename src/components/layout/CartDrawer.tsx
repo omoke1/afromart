@@ -225,7 +225,7 @@ export default function CartDrawer() {
                         <span className="w-7 text-center font-semibold text-dark text-xs">{qty}</span>
                         <button
                           onClick={() => setLineQty(key, qty + 1)}
-                          disabled={qty >= product.stock}
+                          disabled={product.stock != null && qty >= product.stock}
                           aria-label="Increase quantity"
                           className="w-6 h-6 rounded-full hover:bg-surface text-dark flex items-center justify-center disabled:text-ink-muted disabled:cursor-not-allowed"
                         >

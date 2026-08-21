@@ -191,7 +191,7 @@ export default function AdminProductsPage() {
                   <td className="py-3 px-4 text-ink-soft">{catMap.get(p.category_id) ?? "—"}</td>
                   <td className="py-3 px-4 text-dark">£{Number(p.price).toFixed(2)}</td>
                   <td className="py-3 px-4">
-                    <span className={p.stock <= 10 ? "text-red font-medium" : "text-ink-soft"}>{p.stock}</span>
+                    <span className={p.stock != null && p.stock <= 10 ? "text-red font-medium" : "text-ink-soft"}>{p.stock ?? "—"}</span>
                   </td>
                   <td className="py-3 px-4">
                     {p.badge ? (

@@ -63,6 +63,7 @@ interface AnimatedDropdownProps {
   onSelect: (value: string) => void;
   className?: string;
   buttonClassName?: string;
+  dropdownClassName?: string;
   /**
    * When true the trigger's click will call stopPropagation/preventDefault
    * useful when the dropdown is placed inside a link to avoid navigation.
@@ -80,6 +81,7 @@ export default function AnimatedDropdown({
   onSelect,
   className,
   buttonClassName,
+  dropdownClassName,
   stopPropagationOnTrigger,
   align = "right",
   onAction,
@@ -131,6 +133,7 @@ export default function AnimatedDropdown({
                 "overflow-visible rounded-2xl",
                 "bg-white",
                 "shadow-lg",
+                dropdownClassName,
               )}
             >
               <motion.div

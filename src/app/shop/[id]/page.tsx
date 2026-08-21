@@ -81,7 +81,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       "@type": "Offer",
       priceCurrency: "GBP",
       price: Number(product.price),
-      availability: Number(product.stock) > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      availability: product.stock === 0 ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
       url: `${siteUrl}/shop/${product.id}`,
     },
     ...(reviewCount > 0
@@ -183,8 +183,29 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       <Navbar />
       <CategoryBar />
 
-      <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-8 pt-8 lg:pt-12 pb-20 flex-1">
-        <nav className="flex items-center gap-2 text-sm text-ink-muted mb-8 flex-wrap">
+      <div className="max-w-[1400px] mx-auto w-full px-4 sm:px-6 lg:px-10 pt-5 lg:pt-7 pb-20 flex-1">
+        <nav className="flex items-center gap-7 text-sm text-dark mb-8" aria-label="Product navigation">
+          <Link href="/shop" className="flex items-center gap-2 hover:text-brand transition-colors">
+            <span className="grid grid-cols-2 gap-0.5" aria-hidden="true">
+              <span className="w-1.5 h-1.5 rounded-sm border border-current" />
+              <span className="w-1.5 h-1.5 rounded-sm border border-current" />
+              <span className="w-1.5 h-1.5 rounded-sm border border-current" />
+              <span className="w-1.5 h-1.5 rounded-sm border border-current" />
+            </span>
+            Categories
+          </Link>
+          <Link href="/shop" className="flex items-center gap-2 hover:text-brand transition-colors">
+            <span className="w-4 h-4 rounded-md border border-current" aria-hidden="true" />
+            Products
+          </Link>
+        </nav>
+
+        <Link href="/shop" className="mb-8 inline-flex items-center gap-2 text-base font-semibold text-dark hover:text-brand transition-colors">
+          <span className="text-2xl leading-none" aria-hidden="true">‹</span>
+          {displayProduct.name}
+        </Link>
+
+        <nav className="flex items-center gap-2 text-sm text-ink-muted mb-8 flex-wrap" aria-label="Breadcrumb">
           <Link href="/" className="hover:text-dark">Home</Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <Link href="/shop" className="hover:text-dark">Shop</Link>
@@ -200,30 +221,37 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           <span className="text-dark line-clamp-1">{displayProduct.name}</span>
         </nav>
 
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-16">
-          <div
-            className="aspect-square rounded-3xl flex items-center justify-center text-[180px] lg:text-[220px] overflow-hidden"
-            style={{ backgroundColor: displayProduct.bg_color }}
-          >
-            {displayProduct.image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
+        <div className="grid lg:grid-cols-[1.04fr_1fr] gap-8 lg:gap-12 items-start">
+          <div>
+            <div
+              className="aspect-[1.08] rounded-sm border border-[#f2f0ec] bg-white flex items-center justify-center text-[180px] lg:text-[220px] overflow-hidden"
+              style={{ backgroundColor: displayProduct.bg_color }}
+            >
+              {displayProduct.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={displayProduct.image_url}
                   alt={displayProduct.name}
-                  className="w-full h-full object-contain p-2"
+                  className="w-full h-full object-contain p-5 lg:p-8"
                 />
-            ) : (
-              displayProduct.emoji
-            )}
+              ) : (
+                displayProduct.emoji
+              )}
+            </div>
+            <section className="mt-4 px-3 lg:px-4">
+              <h2 className="text-lg font-medium text-dark mb-2">Description</h2>
+              <p className="text-base text-ink leading-relaxed">{displayProduct.description}</p>
+              <button type="button" className="mt-3 text-sm font-medium text-brand hover:text-brand-hover">
+                Read all
+              </button>
+            </section>
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex flex-col rounded-xl border border-line bg-white p-6 lg:p-7 shadow-[0_2px_10px_rgba(30,0,12,0.03)]">
             <p className="text-[11px] tracking-[0.22em] uppercase text-ink-muted mb-2">
               {displayProduct.category}
             </p>
             <h1 className="text-3xl lg:text-4xl font-semibold text-dark tracking-tight">{displayProduct.name}</h1>
-
-            <p className="mt-6 text-ink-soft leading-relaxed">{displayProduct.description}</p>
 
             {displayProduct.origin && (
               <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">

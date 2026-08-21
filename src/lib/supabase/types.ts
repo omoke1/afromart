@@ -88,7 +88,7 @@ export interface Database {
           description: string;
           description_long: string;
           origin: string | null;
-          stock: number;
+          stock: number | null;
           image_url: string;
           is_featured: boolean;
           featured_position: number;
@@ -112,7 +112,7 @@ export interface Database {
           description: string;
           description_long?: string;
           origin?: string | null;
-          stock?: number;
+          stock?: number | null;
           image_url?: string;
           is_featured?: boolean;
           featured_position?: number;
@@ -136,7 +136,7 @@ export interface Database {
           description?: string;
           description_long?: string;
           origin?: string | null;
-          stock?: number;
+          stock?: number | null;
           image_url?: string;
           is_featured?: boolean;
           featured_position?: number;
@@ -199,7 +199,7 @@ export interface Database {
           weight: string;
           price: number;
           compare_at: number | null;
-          stock: number;
+          stock: number | null;
           position: number;
           created_at: string;
           updated_at: string;
@@ -210,7 +210,7 @@ export interface Database {
           weight: string;
           price: number;
           compare_at?: number | null;
-          stock?: number;
+          stock?: number | null;
           position?: number;
           created_at?: string;
           updated_at?: string;
@@ -221,7 +221,7 @@ export interface Database {
           weight?: string;
           price?: number;
           compare_at?: number | null;
-          stock?: number;
+          stock?: number | null;
           position?: number;
           created_at?: string;
           updated_at?: string;

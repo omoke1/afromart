@@ -27,8 +27,8 @@ type CartContextValue = {
   drawerOpen: boolean;
   openDrawer: () => void;
   closeDrawer: () => void;
-  focusedProduct?: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[] } | null;
-  openProductDrawer?: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[] }) => void;
+  focusedProduct?: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number | null }[] } | null;
+  openProductDrawer?: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number | null }[] }) => void;
   lastAdded: { productId: string; at: number } | null;
 };
 
@@ -44,7 +44,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     id: string;
     name?: string;
     img?: string | null;
-    options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number }[];
+    options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number | null }[];
   } | null>(null);
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
   const [userId, setUserId] = useState<string | null>(null);
@@ -161,7 +161,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setDrawerOpen(false);
         setFocusedProduct(null);
       },
-      openProductDrawer: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string }[] }) => {
+      openProductDrawer: (payload: { id: string; name?: string; img?: string | null; options?: { id: string; label: string; price?: number | string; oldPrice?: number | string; stock?: number | null }[] }) => {
         setFocusedProduct(payload);
         setDrawerOpen(true);
       },
@@ -214,7 +214,7 @@ export type CartProductInfo = {
   weight: string;
   category: string;
   optionId: string | null;
-  stock: number;
+  stock: number | null;
 };
 
 export type CartLineDisplay = { key: string; product: CartProductInfo; qty: number };
@@ -257,16 +257,16 @@ export function useCartLines(): CartLineDisplay[] {
             price: Number(p.price),
             weight: p.weight ?? "",
             optionId: null,
-            stock: Number(p.stock ?? 0),
+            stock: p.stock != null ? Number(p.stock) : null,
           });
-          const opts = (p.product_options as unknown as { id: string; weight: string; price: number; stock: number }[] | null) ?? [];
+          const opts = (p.product_options as unknown as { id: string; weight: string; price: number; stock: number | null }[] | null) ?? [];
           for (const opt of opts) {
             map.set(lineKey(p.id, opt.id), {
               ...base,
               price: Number(opt.price),
               weight: opt.weight,
               optionId: opt.id,
-              stock: Number(opt.stock ?? 0),
+              stock: opt.stock != null ? Number(opt.stock) : null,
             });
           }
         }
