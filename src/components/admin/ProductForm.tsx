@@ -15,6 +15,7 @@ type OptionRow = {
   price: string;
   compare_at: string;
   stock: string;
+  shipping_weight_kg: string;
 };
 
 type Props = {
@@ -22,7 +23,7 @@ type Props = {
   product?: Record<string, unknown>;
 };
 
-const emptyOption = (): OptionRow => ({ weight: "1 kg", price: "", compare_at: "", stock: "" });
+const emptyOption = (): OptionRow => ({ weight: "1 Piece", price: "", compare_at: "", stock: "", shipping_weight_kg: "" });
 
 export default function ProductForm({ mode, product }: Props) {
   const router = useRouter();
@@ -84,12 +85,14 @@ export default function ProductForm({ mode, product }: Props) {
           price: number;
           compare_at: number | null;
           stock: number;
+          shipping_weight_kg: number | null;
         }[]).map((o) => ({
           id: o.id,
           weight: o.weight,
           price: String(o.price),
           compare_at: o.compare_at ? String(o.compare_at) : "",
           stock: o.stock != null ? String(o.stock) : "",
+          shipping_weight_kg: o.shipping_weight_kg != null ? String(o.shipping_weight_kg) : "",
         }));
         if (rows.length === 0) {
           rows.push({
@@ -98,6 +101,7 @@ export default function ProductForm({ mode, product }: Props) {
             price: product?.price != null ? String(product.price) : "",
             compare_at: product?.compare_at ? String(product.compare_at) : "",
             stock: product?.stock != null ? String(product.stock) : "",
+            shipping_weight_kg: "",
           });
         }
         setOptionRows(rows);
@@ -226,11 +230,12 @@ export default function ProductForm({ mode, product }: Props) {
       price: parseFloat(r.price),
       compare_at: r.compare_at.trim() ? parseFloat(r.compare_at) : null,
       stock: r.stock.trim() === "" ? null : parseInt(r.stock, 10) || 0,
+      shipping_weight_kg: r.shipping_weight_kg.trim() === "" ? null : parseFloat(r.shipping_weight_kg),
       position: i,
     }));
 
-    if (rows.length === 0 || rows.some((r) => !r.weight || Number.isNaN(r.price))) {
-      setError("Each option needs a weight and a price.");
+    if (rows.length === 0 || rows.some((r) => !r.weight || Number.isNaN(r.price) || (r.shipping_weight_kg !== null && Number.isNaN(r.shipping_weight_kg)))) {
+      setError("Each option needs a pack label and price. Add a valid shipping weight when available.");
       setLoading(false);
       return;
     }
@@ -508,7 +513,7 @@ export default function ProductForm({ mode, product }: Props) {
                       type="text"
                       value={row.weight}
                       onChange={(e) => updateRow(i, "weight", e.target.value)}
-                      placeholder="e.g. 1 Piece, Half Dozen"
+                      placeholder="e.g. 5 Pieces, Half Dozen"
                       className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
                     />
                   </label>
@@ -544,6 +549,19 @@ export default function ProductForm({ mode, product }: Props) {
                       onChange={(e) => updateRow(i, "stock", e.target.value)}
                       className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
                     />
+                  </label>
+                  <label className="block col-span-2">
+                    <span className="block text-xs font-medium text-ink-soft mb-1.5">Total shipping weight (kg)</span>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={row.shipping_weight_kg}
+                      onChange={(e) => updateRow(i, "shipping_weight_kg", e.target.value)}
+                      placeholder="e.g. 1.25"
+                      className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+                    />
+                    <span className="block text-[11px] text-ink-muted mt-1">Used for shipping calculations for this pack.</span>
                   </label>
                 </div>
               </div>

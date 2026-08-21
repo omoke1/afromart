@@ -102,12 +102,13 @@ export async function POST(req: Request) {
     const options = Array.isArray(body.options) ? body.options : [];
     if (options.length > 0) {
       const { error: optErr } = await db.from("product_options").insert(
-        options.map((o: { weight: string; price: number; compare_at: number | null; stock: number; position: number }) => ({
+        options.map((o: { weight: string; price: number; compare_at: number | null; stock: number | null; shipping_weight_kg: number | null; position: number }) => ({
           product_id: inserted.id,
           weight: o.weight,
           price: o.price,
           compare_at: o.compare_at,
           stock: o.stock,
+          shipping_weight_kg: o.shipping_weight_kg,
           position: o.position,
         }))
       );

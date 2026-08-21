@@ -206,6 +206,7 @@ export interface Database {
           price: number;
           compare_at: number | null;
           stock: number | null;
+          shipping_weight_kg: number | null;
           position: number;
           created_at: string;
           updated_at: string;
@@ -217,6 +218,7 @@ export interface Database {
           price: number;
           compare_at?: number | null;
           stock?: number | null;
+          shipping_weight_kg?: number | null;
           position?: number;
           created_at?: string;
           updated_at?: string;
@@ -228,6 +230,7 @@ export interface Database {
           price?: number;
           compare_at?: number | null;
           stock?: number | null;
+          shipping_weight_kg?: number | null;
           position?: number;
           created_at?: string;
           updated_at?: string;

@@ -52,6 +52,9 @@ export default function AdminCategoriesPage() {
   const [weightUnits, setWeightUnits] = useState<string[]>([]);
   const [newUnit, setNewUnit] = useState("");
   const [showStockStatus, setShowStockStatus] = useState(true);
+  const [inlineSubcats, setInlineSubcats] = useState<Subcategory[]>([]);
+  const [originalSubcatIds, setOriginalSubcatIds] = useState<string[]>([]);
+  const [newInlineSubcat, setNewInlineSubcat] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -83,8 +86,15 @@ export default function AdminCategoriesPage() {
     else { setExpandedCat(catId); if (!subcats[catId]) loadSubcats(catId); }
   }
 
-  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setImageUrl(""); setShowStockStatus(true); setModal("create"); }
-  function openEdit(cat: Category) { setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setImageUrl(cat.image_url ?? ""); setShowStockStatus(cat.show_stock_status !== false); setModal("edit"); }
+  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setImageUrl(""); setShowStockStatus(true); setInlineSubcats([]); setOriginalSubcatIds([]); setNewInlineSubcat(""); setModal("create"); }
+  async function openEdit(cat: Category) {
+    setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setImageUrl(cat.image_url ?? ""); setShowStockStatus(cat.show_stock_status !== false); setNewInlineSubcat(""); setModal("edit");
+    const res = await fetch(`/api/admin/subcategories?category_id=${cat.id}`);
+    const data = await res.json();
+    const rows = (data.subcategories ?? []) as Subcategory[];
+    setInlineSubcats(rows);
+    setOriginalSubcatIds(rows.map((row) => row.id));
+  }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -101,7 +111,19 @@ export default function AdminCategoriesPage() {
     };
     const url = modal === "edit" && editItem ? `/api/admin/categories/${editItem.id}` : "/api/admin/categories";
     const method = modal === "edit" ? "PATCH" : "POST";
-    await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const response = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const saved = await response.json();
+    const categoryId = editItem?.id ?? saved.id;
+    if (response.ok && categoryId) {
+      await Promise.all([
+        ...originalSubcatIds.filter((id) => !inlineSubcats.some((row) => row.id === id)).map((id) => fetch(`/api/admin/subcategories/${id}`, { method: "DELETE" })),
+        ...inlineSubcats.map((row, index) => fetch(row.id ? `/api/admin/subcategories/${row.id}` : "/api/admin/subcategories", {
+          method: row.id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ category_id: categoryId, name: row.name, slug: row.slug, emoji: row.emoji, position: index }),
+        })),
+      ]);
+    }
     setModal(null); setEditItem(null); setSaving(false); loadCategories();
   }
 
@@ -358,6 +380,28 @@ export default function AdminCategoriesPage() {
                     className="flex-1 h-9 px-3 border border-[#e6e1d6] rounded-xl text-xs text-dark bg-white focus:outline-none focus:border-dark" />
                   <button type="button" onClick={() => { const val = newUnit.trim(); if (val && !weightUnits.includes(val)) { setWeightUnits([...weightUnits, val]); setNewUnit(""); } }}
                     className="h-9 px-3 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea] transition-colors shrink-0">Add</button>
+                </div>
+              </div>
+              <div className="block rounded-xl border border-[#e6e1d6] p-4">
+                <span className="block text-xs font-semibold text-dark">Subcategories</span>
+                <span className="block text-[11px] text-ink-muted mt-0.5 mb-2">Create and manage subcategories for this category.</span>
+                <div className="space-y-2 mb-3">
+                  {inlineSubcats.map((sub, index) => (
+                    <div key={sub.id ?? `new-${index}`} className="flex items-center gap-2">
+                      <input
+                        value={sub.name}
+                        onChange={(e) => setInlineSubcats((rows) => rows.map((row, i) => i === index ? { ...row, name: e.target.value, slug: e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-") } : row))}
+                        className="flex-1 h-9 px-3 border border-[#e6e1d6] rounded-xl text-xs text-dark focus:outline-none focus:border-dark"
+                      />
+                      <button type="button" onClick={() => setInlineSubcats((rows) => rows.filter((_, i) => i !== index))} className="w-8 h-8 rounded-full text-ink-muted hover:text-red flex items-center justify-center">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input value={newInlineSubcat} onChange={(e) => setNewInlineSubcat(e.target.value)} placeholder="e.g. Smoked Fish" className="flex-1 h-9 px-3 border border-[#e6e1d6] rounded-xl text-xs text-dark focus:outline-none focus:border-dark" />
+                  <button type="button" onClick={() => { const name = newInlineSubcat.trim(); if (!name) return; setInlineSubcats((rows) => [...rows, { id: "", category_id: editItem?.id ?? "", name, slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), emoji: "📦", position: rows.length }]); setNewInlineSubcat(""); }} className="h-9 px-3 rounded-full border border-[#e6e1d6] text-xs font-medium text-dark hover:bg-[#f4f1ea]">Add</button>
                 </div>
               </div>
               <div className="flex gap-3 justify-end pt-2">

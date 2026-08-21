@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     admin.from("shipping_settings").select("*").eq("id", "default").maybeSingle(),
     admin
       .from("products")
-      .select("id, name, price, emoji, stock, weight, product_options(id, weight, price, stock)")
+      .select("id, name, price, emoji, stock, weight, product_options(id, weight, price, stock, shipping_weight_kg)")
       .in("id", ids),
   ]);
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not load products." }, { status: 500 });
   }
 
-  type Option = { id: string; weight: string; price: number; stock: number };
+  type Option = { id: string; weight: string; price: number; stock: number; shipping_weight_kg: number | null };
   const priceById = new Map(products.map((p) => [p.id, p]));
 
   // Build verified line items and accumulate shipping weight.
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       option_id: option?.id ?? null,
     });
 
-    const parsedKg = parseWeightKg(weight);
+    const parsedKg = option?.shipping_weight_kg != null ? Number(option.shipping_weight_kg) : parseWeightKg(weight);
     if (parsedKg !== null) {
       totalKg += parsedKg * line.qty;
     }

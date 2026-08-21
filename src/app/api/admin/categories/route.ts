@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   try {
     const db = await adminDb();
     const body = await req.json();
-    const { error } = await db.from("categories").insert({
+    const { data: inserted, error } = await db.from("categories").insert({
       name: body.name,
       slug: body.slug,
       image_url: body.image_url ?? null,
@@ -27,9 +27,9 @@ export async function POST(req: Request) {
       description: body.description,
       weight_units: body.weight_units ?? [],
       show_stock_status: body.show_stock_status !== false,
-    });
+    }).select("id").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true, id: inserted?.id }, { status: 201 });
   } catch (err) {
     const res = await handleAuthError(err);
     return res ?? NextResponse.json({ error: "Server error" }, { status: 500 });

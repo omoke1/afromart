@@ -11,7 +11,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     const [productRes, optionsRes, relatedRes] = await Promise.all([
       db.from("products").select("*").eq("id", id).maybeSingle(),
-      db.from("product_options").select("id, weight, price, compare_at, stock").eq("product_id", id).order("position"),
+      db.from("product_options").select("id, weight, price, compare_at, stock, shipping_weight_kg").eq("product_id", id).order("position"),
       db.from("related_products").select("related_id").eq("product_id", id),
     ]);
     if (productRes.error) return NextResponse.json({ error: productRes.error.message }, { status: 500 });
@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     if (Array.isArray(body.options)) {
-      const options = body.options as { weight: string; price: number; compare_at: number | null; stock: number; position: number }[];
+      const options = body.options as { weight: string; price: number; compare_at: number | null; stock: number | null; shipping_weight_kg: number | null; position: number }[];
       const { error: delErr } = await db.from("product_options").delete().eq("product_id", id);
       if (delErr) return NextResponse.json({ error: delErr.message }, { status: 500 });
 
@@ -75,6 +75,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             price: o.price,
             compare_at: o.compare_at,
             stock: o.stock,
+            shipping_weight_kg: o.shipping_weight_kg,
             position: o.position,
           }))
         );

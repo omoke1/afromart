@@ -18,13 +18,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createServerSupabase();
 
-  type OptionRow = { id: string; weight: string; price: number; compare_at: number | null; stock: number | null };
+  type OptionRow = { id: string; weight: string; price: number; compare_at: number | null; stock: number | null; shipping_weight_kg: number | null };
 
-  const productRaw = await supabase
+  const productSelect = supabase
     .from("products")
-    .select("*, categories(name, slug, show_stock_status), subcategories(name, slug), product_options(id, weight, price, compare_at, stock)")
-    .or(`id.eq.${id},slug.eq.${id}`)
-    .single();
+    .select("*, categories(name, slug, show_stock_status), subcategories(name, slug), product_options(id, weight, price, compare_at, stock, shipping_weight_kg)");
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  const productRaw = await (isUuid ? productSelect.eq("id", id) : productSelect.eq("slug", id)).single();
   const product = productRaw.data as unknown as { id: string; slug: string | null; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number | null; category_id: string; subcategory_id: string | null; image_url: string | null; stock_label_visibility: "category" | "show" | "hide"; categories: { name: string; slug: string; show_stock_status?: boolean } | null; subcategories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
@@ -118,12 +118,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     curatedIds.length > 0
       ? await supabase
           .from("products")
-          .select("*, categories(name), product_options(id, weight, price, stock)")
+          .select("*, categories(name), product_options(id, weight, price, stock, shipping_weight_kg)")
           .in("id", curatedIds)
           .limit(4)
       : await supabase
           .from("products")
-          .select("*, categories(name), product_options(id, weight, price, stock)")
+          .select("*, categories(name), product_options(id, weight, price, stock, shipping_weight_kg)")
           .eq("category_id", product.category_id)
           .neq("id", product.id)
           .limit(4);
