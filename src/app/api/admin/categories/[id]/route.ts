@@ -16,6 +16,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.bg_color !== undefined) update.bg_color = body.bg_color;
     if (body.description !== undefined) update.description = body.description;
     if (body.weight_units !== undefined) update.weight_units = body.weight_units ?? [];
+    if (body.show_stock_status !== undefined) update.show_stock_status = body.show_stock_status !== false;
     const { error } = await db.from("categories").update(update).eq("id", id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });

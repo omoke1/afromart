@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
 import { useExchangeRates } from '@/lib/useExchangeRates';
 import formatCurrency from '@/lib/currency';
+import { productPath } from "@/lib/product-url";
 
 type WishlistProduct = {
   id: string;
@@ -110,7 +111,7 @@ export default function WishlistPage() {
                 {items.map((product) => (
                   <li key={product.id} className="py-5 flex gap-4 sm:gap-6 items-center">
                     <Link
-                      href={`/shop/${product.id}`}
+                      href={productPath(product)}
                       className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shrink-0"
                       style={{ backgroundColor: product.bg_color }}
                     >
@@ -118,7 +119,7 @@ export default function WishlistPage() {
                     </Link>
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">{product.category}</p>
-                      <Link href={`/shop/${product.id}`} className="font-medium text-dark hover:text-brand line-clamp-1">
+                      <Link href={productPath(product)} className="font-medium text-dark hover:text-brand line-clamp-1">
                         {product.name}
                       </Link>
                       <p className="text-xs text-ink-muted mt-1">

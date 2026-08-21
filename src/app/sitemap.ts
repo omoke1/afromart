@@ -32,7 +32,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const [products, categories, blog, recipes] = await Promise.all([
-    admin.from("products").select("id, updated_at, is_active"),
+    admin.from("products").select("id, slug, updated_at, is_active"),
     admin.from("categories").select("slug, created_at"),
     admin.from("blog_posts").select("slug, created_at"),
     admin.from("recipes").select("slug, created_at"),
@@ -41,7 +41,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const productEntries: MetadataRoute.Sitemap = (products.data ?? [])
     .filter((p) => p.is_active)
     .map((p) => ({
-      url: `${BASE}/shop/${p.id}`,
+      url: `${BASE}/products/${p.slug || p.id}`,
       lastModified: p.updated_at,
       changeFrequency: "daily" as const,
       priority: 0.8,

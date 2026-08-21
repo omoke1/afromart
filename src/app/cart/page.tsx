@@ -11,6 +11,7 @@ import { useExchangeRates } from '@/lib/useExchangeRates';
 import formatCurrency from '@/lib/currency';
 import { calculateShippingFee, parseWeightKg } from '@/lib/weight';
 import { useShippingSettings } from '@/lib/useShippingSettings';
+import { productPath } from "@/lib/product-url";
 
 export default function CartPage() {
   const { subtotal, setLineQty, removeLine, hydrated, count } = useCart();
@@ -107,7 +108,7 @@ export default function CartPage() {
               {lines.map(({ key, product, qty }) => (
                 <li key={key} className="py-6 flex gap-4 sm:gap-6">
                   <Link
-                    href={`/shop/${product.id}`}
+                    href={productPath(product)}
                     className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl flex items-center justify-center text-5xl shrink-0"
                     style={{ backgroundColor: product.bg }}
                   >
@@ -115,7 +116,7 @@ export default function CartPage() {
                   </Link>
                   <div className="flex-1 min-w-0 flex flex-col">
                     <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">{product.category}</p>
-                    <Link href={`/shop/${product.id}`} className="font-medium text-dark hover:text-brand line-clamp-2">
+                    <Link href={productPath(product)} className="font-medium text-dark hover:text-brand line-clamp-2">
                       {product.name}
                     </Link>
                     <p className="text-xs text-ink-muted mt-1">{product.weight}</p>

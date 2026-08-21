@@ -24,6 +24,7 @@ type BuyBoxProduct = {
   weight: string;
   compare_at?: number | null;
   image_url?: string;
+  showStockStatus?: boolean;
   options?: ProductOption[];
 };
 
@@ -102,7 +103,7 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
         />
       </label>
 
-      <p className="mt-4 text-sm">
+      {product.showStockStatus !== false && <p className="mt-4 text-sm">
         {unitStock === 0 ? (
           <span className="text-red font-medium">Out of stock</span>
         ) : unitStock == null ? (
@@ -112,7 +113,7 @@ export default function ProductBuyBox({ product }: { product: BuyBoxProduct }) {
             In stock · {unitStock} {unitStock === 1 ? "unit" : "units"} left
           </span>
         )}
-      </p>
+      </p>}
 
       <div className="mt-5 flex flex-col sm:flex-row gap-3">
         <div className="flex items-center border border-line rounded-full px-2 h-12 w-fit">

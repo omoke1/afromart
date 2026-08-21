@@ -12,6 +12,7 @@ type Category = {
   bg_color: string;
   description: string;
   weight_units: string[];
+  show_stock_status: boolean;
 };
 
 type Subcategory = {
@@ -50,6 +51,7 @@ export default function AdminCategoriesPage() {
   const [saving, setSaving] = useState(false);
   const [weightUnits, setWeightUnits] = useState<string[]>([]);
   const [newUnit, setNewUnit] = useState("");
+  const [showStockStatus, setShowStockStatus] = useState(true);
   const [imageUrl, setImageUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -81,8 +83,8 @@ export default function AdminCategoriesPage() {
     else { setExpandedCat(catId); if (!subcats[catId]) loadSubcats(catId); }
   }
 
-  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setImageUrl(""); setModal("create"); }
-  function openEdit(cat: Category) { setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setImageUrl(cat.image_url ?? ""); setModal("edit"); }
+  function openCreate() { setEditItem(null); setWeightUnits([]); setNewUnit(""); setImageUrl(""); setShowStockStatus(true); setModal("create"); }
+  function openEdit(cat: Category) { setEditItem(cat); setWeightUnits(cat.weight_units ?? []); setNewUnit(""); setImageUrl(cat.image_url ?? ""); setShowStockStatus(cat.show_stock_status !== false); setModal("edit"); }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -95,6 +97,7 @@ export default function AdminCategoriesPage() {
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       description: (form.get("description") as string) || "",
       weight_units: weightUnits,
+      show_stock_status: showStockStatus,
     };
     const url = modal === "edit" && editItem ? `/api/admin/categories/${editItem.id}` : "/api/admin/categories";
     const method = modal === "edit" ? "PATCH" : "POST";
@@ -326,6 +329,13 @@ export default function AdminCategoriesPage() {
                 <span className="block text-xs font-medium text-ink-soft mb-1.5">Description</span>
                 <textarea name="description" rows={2} defaultValue={editItem?.description ?? ""}
                   className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-none" />
+              </label>
+              <label className="flex items-start gap-3 rounded-xl border border-[#e6e1d6] p-3 cursor-pointer">
+                <input type="checkbox" checked={showStockStatus} onChange={(e) => setShowStockStatus(e.target.checked)} className="mt-0.5 accent-brand" />
+                <span>
+                  <span className="block text-sm font-medium text-dark">Show stock status on products</span>
+                  <span className="block text-[11px] text-ink-muted mt-0.5">Products can override this setting individually.</span>
+                </span>
               </label>
               <div className="block">
                 <span className="block text-xs font-medium text-ink-soft mb-1.5">Weight / Size presets</span>

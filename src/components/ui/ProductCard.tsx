@@ -9,9 +9,11 @@ import AnimatedDropdown from "@/components/ui/animated-dropdown";
 import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
 import { useExchangeRates } from '@/lib/useExchangeRates';
 import formatCurrency from '@/lib/currency';
+import { productPath } from "@/lib/product-url";
 
 type CardOption = {
   id: string;
+  slug?: string | null;
   weight: string;
   price: number;
   stock: number | null;
@@ -59,7 +61,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
 
   return (
     <div className="group flex flex-col">
-      <Link href={`/shop/${product.id}`} className="relative block">
+      <Link href={productPath(product)} className="relative block">
         {product.badge && <Badge kind={product.badge as "promo" | "best-seller" | "new"} />}
         <button
           onClick={(e) => {
@@ -124,7 +126,7 @@ export default function ProductCard({ product }: { product: ProductCardProduct }
           {product.category}
         </p>
         <Link
-          href={`/shop/${product.id}`}
+          href={productPath(product)}
           className="text-[15px] font-medium text-dark leading-snug hover:text-brand transition-colors line-clamp-2 min-h-[44px]"
         >
           {product.name}

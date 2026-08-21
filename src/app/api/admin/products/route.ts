@@ -92,6 +92,7 @@ export async function POST(req: Request) {
       is_featured: body.is_featured,
       featured_position: body.featured_position,
       low_stock_threshold: body.low_stock_threshold,
+      stock_label_visibility: body.stock_label_visibility ?? "category",
       slug: body.slug || slugify(body.name),
     };
 

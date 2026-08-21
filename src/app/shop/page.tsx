@@ -14,6 +14,7 @@ type SortKey = "featured" | "price-asc" | "price-desc" | "name";
 
 type DisplayProduct = {
   id: string;
+  slug: string | null;
   name: string;
   category: string;
   category_slug: string;
@@ -80,7 +81,7 @@ function ShopInner() {
       const subcatRaw = await supabase.from("subcategories").select("*").order("position");
       const subcatData = (subcatRaw.data ?? []) as { id: string; category_id: string; name: string; slug: string; emoji: string; position: number }[];
       const prodRaw = await supabase.from("products").select("*, categories!inner(name, slug), product_options(id, weight, price, stock)").eq("is_active", true).order("name");
-      const products = prodRaw.data as { id: string; name: string; category_id: string; subcategory_id: string | null; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string }; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
+      const products = prodRaw.data as { id: string; slug: string | null; name: string; category_id: string; subcategory_id: string | null; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; featured_position: number | null; categories: { name: string; slug: string }; product_options: { id: string; weight: string; price: number; stock: number }[] | null }[] | null;
 
       if (!categories || !products) return;
 
@@ -107,6 +108,7 @@ function ShopInner() {
           const sub = p.subcategory_id ? subMap.get(p.subcategory_id) : null;
           return {
             id: p.id,
+            slug: p.slug,
             name: p.name,
             category: cat?.name ?? "",
             category_slug: cat?.slug ?? "",

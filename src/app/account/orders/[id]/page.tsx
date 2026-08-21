@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerUser } from "@/lib/auth";
 import { trackingUrl } from "@/lib/couriers";
 import ReorderButton from "./ReorderButton";
+import { productPath } from "@/lib/product-url";
 
 function statusColor(status: string) {
   switch (status) {
@@ -227,7 +228,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {lines.map(({ product, qty }) => (
               <li key={product.id} className="py-5 flex gap-4">
                 <Link
-                  href={`/shop/${product.id}`}
+                  href={productPath(product)}
                   className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shrink-0"
                   style={{ backgroundColor: product.bg_color }}
                 >
@@ -235,7 +236,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 </Link>
                 <div className="flex-1 min-w-0">
                   <p className="text-[11px] tracking-[0.14em] uppercase text-ink-muted">{product.category}</p>
-                  <Link href={`/shop/${product.id}`} className="font-medium text-dark hover:text-brand">
+                  <Link href={productPath(product)} className="font-medium text-dark hover:text-brand">
                     {product.name}
                   </Link>
                   <p className="text-xs text-ink-muted mt-1">{product.weight} · qty {qty}</p>

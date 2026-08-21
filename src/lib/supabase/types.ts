@@ -15,6 +15,7 @@ export interface Database {
           id: string;
           name: string;
           slug: string;
+          show_stock_status: boolean;
           image_url: string | null;
           bg_color: string;
           description: string;
@@ -25,6 +26,7 @@ export interface Database {
           id?: string;
           name: string;
           slug: string;
+          show_stock_status?: boolean;
           image_url?: string | null;
           bg_color: string;
           description: string;
@@ -35,6 +37,7 @@ export interface Database {
           id?: string;
           name?: string;
           slug?: string;
+          show_stock_status?: boolean;
           image_url?: string | null;
           bg_color?: string;
           description?: string;
@@ -94,6 +97,7 @@ export interface Database {
           featured_position: number;
           is_active: boolean;
           low_stock_threshold: number;
+          stock_label_visibility: string;
           slug: string | null;
           created_at: string;
           updated_at: string;
@@ -118,6 +122,7 @@ export interface Database {
           featured_position?: number;
           is_active?: boolean;
           low_stock_threshold?: number;
+          stock_label_visibility?: string;
           slug?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -142,6 +147,7 @@ export interface Database {
           featured_position?: number;
           is_active?: boolean;
           low_stock_threshold?: number;
+          stock_label_visibility?: string;
           slug?: string | null;
           created_at?: string;
           updated_at?: string;

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Product = {
   id: string;
+  slug?: string | null;
   name: string;
   category_id: string;
   category: string;
@@ -47,7 +48,8 @@ export default function BestSellers() {
         const enriched = (data ?? [])
           .filter((p: Record<string, unknown>) => p.is_featured === true)
           .map((p: Record<string, unknown>) => ({
-            id: p.id as string,
+          id: p.id as string,
+          slug: p.slug as string | null,
             name: p.name as string,
             category_id: p.category_id as string,
             weight: p.weight as string,

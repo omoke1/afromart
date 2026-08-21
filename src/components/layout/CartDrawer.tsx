@@ -9,6 +9,7 @@ import { usePreferredCurrency } from '@/lib/usePreferredCurrency';
 import formatCurrency from '@/lib/currency';
 import { calculateShippingFee, parseWeightKg } from '@/lib/weight';
 import { useShippingSettings } from '@/lib/useShippingSettings';
+import { productPath } from "@/lib/product-url";
 
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(false);
@@ -193,7 +194,7 @@ export default function CartDrawer() {
               {lines.map(({ key, product, qty }) => (
                 <li key={key} className="py-5 flex gap-3">
                   <Link
-                    href={`/shop/${product.id}`}
+                    href={productPath(product)}
                     onClick={closeDrawer}
                     className="w-20 h-20 rounded-2xl flex items-center justify-center text-4xl shrink-0"
                     style={{ backgroundColor: product.bg }}
@@ -205,7 +206,7 @@ export default function CartDrawer() {
                       {product.category}
                     </p>
                     <Link
-                      href={`/shop/${product.id}`}
+                      href={productPath(product)}
                       onClick={closeDrawer}
                       className="text-sm font-medium text-dark hover:text-brand line-clamp-2"
                     >

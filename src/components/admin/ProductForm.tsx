@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Upload, X, Plus, Trash2, Clipboard, ImageUp } from "lucide-react";
 import { TitleSlugFields } from "@/components/admin/TitleSlugFields";
 import { RelatedProductsPicker } from "@/components/admin/RelatedProductsPicker";
+import { productPath } from "@/lib/product-url";
 type Category = { id: string; name: string; weight_units: string[] };
 type Subcategory = { id: string; category_id: string; name: string; slug: string; emoji: string; position: number };
 
@@ -42,6 +43,9 @@ export default function ProductForm({ mode, product }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [presetUnits, setPresetUnits] = useState<string[]>([]);
   const [newPreset, setNewPreset] = useState("");
+  const [stockLabelVisibility, setStockLabelVisibility] = useState(
+    (product?.stock_label_visibility as string) ?? "category"
+  );
 
   useEffect(() => {
     fetch("/api/admin/categories")
@@ -252,6 +256,7 @@ export default function ProductForm({ mode, product }: Props) {
       is_featured: form.get("is_featured") === "on",
       featured_position: parseInt(form.get("featured_position") as string) || 0,
       low_stock_threshold: parseInt(form.get("low_stock_threshold") as string) || 5,
+      stock_label_visibility: stockLabelVisibility,
       slug: (form.get("slug") as string) || null,
     };
 
@@ -302,7 +307,7 @@ export default function ProductForm({ mode, product }: Props) {
         </h2>
         {mode === "edit" && product?.slug ? (
           <a
-            href={`/shop/${product.id}`}
+            href={productPath({ id: product.id as string, slug: product.slug as string | null })}
             target="_blank"
             className="text-xs font-medium text-brand hover:underline"
           >
@@ -601,6 +606,21 @@ export default function ProductForm({ mode, product }: Props) {
           <Field label="Featured position" name="featured_position" type="number" defaultValue={product ? String(product.featured_position ?? 0) : "0"} />
           <Field label="Low-stock alert at" name="low_stock_threshold" type="number" defaultValue={product ? String(product.low_stock_threshold ?? 5) : "5"} />
         </div>
+        <label className="block max-w-sm">
+          <span className="block text-xs font-medium text-ink-soft mb-1.5">Stock status label</span>
+          <select
+            value={stockLabelVisibility}
+            onChange={(e) => setStockLabelVisibility(e.target.value)}
+            className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+          >
+            <option value="category">Use category default</option>
+            <option value="show">Always show</option>
+            <option value="hide">Always hide</option>
+          </select>
+          <span className="block text-[11px] text-ink-muted mt-1.5">
+            Controls the storefront label only. Stock and checkout behavior are unchanged.
+          </span>
+        </label>
         <p className="text-[11px] text-ink-muted -mt-2">
           You&apos;ll be alerted when stock drops to this number. Defaults to 5.
         </p>

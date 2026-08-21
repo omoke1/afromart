@@ -10,6 +10,7 @@ import ProductReviews, { type ReviewItem } from "@/components/sections/ProductRe
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerUser } from "@/lib/auth";
+import { productPath } from "@/lib/product-url";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,14 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const supabase = await createServerSupabase();
 
-  type OptionRow = { id: string; weight: string; price: number; compare_at: number | null; stock: number };
+  type OptionRow = { id: string; weight: string; price: number; compare_at: number | null; stock: number | null };
 
   const productRaw = await supabase
     .from("products")
-    .select("*, categories(name, slug), subcategories(name, slug), product_options(id, weight, price, compare_at, stock)")
-    .eq("id", id)
+    .select("*, categories(name, slug, show_stock_status), subcategories(name, slug), product_options(id, weight, price, compare_at, stock)")
+    .or(`id.eq.${id},slug.eq.${id}`)
     .single();
-  const product = productRaw.data as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number; category_id: string; subcategory_id: string | null; image_url: string | null; categories: { name: string; slug: string } | null; subcategories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
+  const product = productRaw.data as unknown as { id: string; slug: string | null; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; description: string; description_long: string; origin: string | null; stock: number | null; category_id: string; subcategory_id: string | null; image_url: string | null; stock_label_visibility: "category" | "show" | "hide"; categories: { name: string; slug: string; show_stock_status?: boolean } | null; subcategories: { name: string; slug: string } | null; product_options: OptionRow[] | null } | null;
 
   if (!product) notFound();
 
@@ -34,7 +35,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     createAdminClient()
       .from("reviews")
       .select("id, rating, title, body, created_at, user_id, profiles(name)")
-      .eq("product_id", id)
+      .eq("product_id", product.id)
       .eq("is_approved", true)
       .order("created_at", { ascending: false }),
     getServerUser(),
@@ -82,7 +83,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       priceCurrency: "GBP",
       price: Number(product.price),
       availability: product.stock === 0 ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
-      url: `${siteUrl}/shop/${product.id}`,
+    url: `${siteUrl}${productPath(product)}`,
     },
     ...(reviewCount > 0
       ? {
@@ -110,7 +111,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const relatedRes = await supabase
     .from("related_products")
     .select("related_id")
-    .eq("product_id", id);
+    .eq("product_id", product.id);
   const curatedIds = (relatedRes.data ?? []).map((r) => r.related_id);
 
   const relatedRaw =
@@ -126,10 +127,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           .eq("category_id", product.category_id)
           .neq("id", product.id)
           .limit(4);
-  const related = (relatedRaw.data ?? []) as unknown as { id: string; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null; product_options: OptionRow[] | null }[];
+  const related = (relatedRaw.data ?? []) as unknown as { id: string; slug: string | null; name: string; price: number; emoji: string; bg_color: string; badge: string | null; weight: string; compare_at: number | null; image_url: string | null; categories: { name: string } | null; product_options: OptionRow[] | null }[];
 
   const displayProduct = {
     id: product.id,
+    slug: product.slug,
     name: product.name,
     category: cat?.name ?? "",
     category_slug: cat?.slug ?? "",
@@ -145,6 +147,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     description_long: product.description_long,
     origin: product.origin,
     stock: product.stock,
+    showStockStatus:
+      product.stock_label_visibility === "show" ||
+      (product.stock_label_visibility === "category" && product.categories?.show_stock_status !== false),
     image_url: product.image_url ?? "",
     options,
   };
@@ -153,6 +158,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     const c = p.categories as { name: string } | null;
     return {
       id: p.id,
+      slug: p.slug,
       name: p.name,
       category: c?.name ?? "",
       price: Number(p.price),

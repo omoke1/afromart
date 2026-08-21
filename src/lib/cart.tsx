@@ -207,6 +207,7 @@ export function useCart() {
 
 export type CartProductInfo = {
   id: string;
+  slug?: string | null;
   name: string;
   price: number;
   bg: string;
@@ -237,7 +238,7 @@ export function useCartLines(): CartLineDisplay[] {
     supabase
       .from("products")
       .select(
-        "id, name, price, bg_color, emoji, weight, stock, categories(name), product_options(id, weight, price, stock)"
+        "id, slug, name, price, bg_color, emoji, weight, stock, categories(name), product_options(id, weight, price, stock)"
       )
       .in("id", idArr)
       .then(({ data }) => {

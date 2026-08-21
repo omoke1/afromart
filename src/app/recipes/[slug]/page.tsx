@@ -6,6 +6,7 @@ import CategoryBar from "@/components/layout/CategoryBar";
 import Footer from "@/components/layout/Footer";
 import RecipeAddAll from "@/components/sections/RecipeAddAll";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { productPath } from "@/lib/product-url";
 
 export default async function RecipeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -100,7 +101,7 @@ export default async function RecipeDetailPage({ params }: { params: Promise<{ s
                   <li key={ing.name} className="py-3.5 flex items-baseline gap-3">
                     <span className="flex-1">
                       {product ? (
-                        <Link href={`/shop/${product.id}`} className="text-dark hover:text-brand font-medium">
+                        <Link href={productPath(product)} className="text-dark hover:text-brand font-medium">
                           {ing.name}
                         </Link>
                       ) : (
