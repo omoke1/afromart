@@ -114,6 +114,8 @@ export interface Database {
           badge: string | null;
           description: string;
           description_long: string;
+          seo_title: string | null;
+          seo_description: string | null;
           origin: string | null;
           stock: number | null;
           image_url: string;
@@ -139,6 +141,8 @@ export interface Database {
           badge?: string | null;
           description: string;
           description_long?: string;
+          seo_title?: string | null;
+          seo_description?: string | null;
           origin?: string | null;
           stock?: number | null;
           image_url?: string;
@@ -164,6 +168,8 @@ export interface Database {
           badge?: string | null;
           description?: string;
           description_long?: string;
+          seo_title?: string | null;
+          seo_description?: string | null;
           origin?: string | null;
           stock?: number | null;
           image_url?: string;

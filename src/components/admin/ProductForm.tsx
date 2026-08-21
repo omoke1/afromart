@@ -255,6 +255,8 @@ export default function ProductForm({ mode, product }: Props) {
       badge: (form.get("badge") as string) || null,
       description: (form.get("description") as string) || "",
       description_long: (form.get("description_long") as string) || "",
+      seo_title: (form.get("seo_title") as string) || null,
+      seo_description: (form.get("seo_description") as string) || null,
       origin: (form.get("origin") as string) || null,
       stock: first.stock,
       image_url: imageUrl || "",
@@ -608,6 +610,36 @@ export default function ProductForm({ mode, product }: Props) {
             className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-y"
           />
         </label>
+
+        <div className="rounded-xl border border-[#e6e1d6] bg-[#faf9f6] p-4 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-dark">Search engine preview</h3>
+            <p className="text-[11px] text-ink-muted mt-1">Optional metadata used by Google and social sharing. Leave blank to use the product name and short description.</p>
+          </div>
+          <label className="block">
+            <span className="block text-xs font-medium text-ink-soft mb-1.5">SEO title</span>
+            <input
+              name="seo_title"
+              defaultValue={(product?.seo_title as string) ?? ""}
+              maxLength={60}
+              placeholder="e.g. Buy Smoked Catfish Online | AfroMart"
+              className="w-full h-10 px-4 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark"
+            />
+            <span className="block text-[11px] text-ink-muted mt-1">Aim for 50–60 characters.</span>
+          </label>
+          <label className="block">
+            <span className="block text-xs font-medium text-ink-soft mb-1.5">SEO description</span>
+            <textarea
+              name="seo_description"
+              rows={3}
+              defaultValue={(product?.seo_description as string) ?? ""}
+              maxLength={160}
+              placeholder="A concise description for search results and link previews."
+              className="w-full px-4 py-2.5 border border-[#e6e1d6] rounded-xl text-sm text-dark bg-white focus:outline-none focus:border-dark resize-none"
+            />
+            <span className="block text-[11px] text-ink-muted mt-1">Aim for 120–160 characters.</span>
+          </label>
+        </div>
 
         {mode === "create" || !optionsLoading ? (
           <RelatedProductsPicker

@@ -48,6 +48,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       badge: body.badge,
       description: body.description,
       description_long: body.description_long,
+      seo_title: body.seo_title || null,
+      seo_description: body.seo_description || null,
       origin: body.origin,
       stock: body.stock,
       image_url: body.image_url,
