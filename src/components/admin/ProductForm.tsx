@@ -249,7 +249,8 @@ export default function ProductForm({ mode, product }: Props) {
       weight: first.weight,
       price: first.price,
       compare_at: first.compare_at,
-      emoji: (form.get("emoji") as string) || "📦",
+      // Keep the legacy required field internal; product imagery is managed separately.
+      emoji: (product?.emoji as string) || "📦",
       bg_color: (form.get("bg_color") as string) || "#f4f1ea",
       badge: (form.get("badge") as string) || null,
       description: (form.get("description") as string) || "",
@@ -569,8 +570,7 @@ export default function ProductForm({ mode, product }: Props) {
           )}
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <Field label="Emoji" name="emoji" defaultValue={(product?.emoji as string) ?? "📦"} />
+        <div className="grid grid-cols-2 gap-4">
           <Field label="Background color" name="bg_color" defaultValue={(product?.bg_color as string) ?? "#f4f1ea"} />
           <SelectField
             label="Badge"
